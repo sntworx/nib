@@ -2,6 +2,8 @@
 
 ![nib](.github/assets/nib-logo.svg)
 
+> **Active development.** APIs, syntax, and behavior may change without notice. Not recommended for production use yet.
+
 ### What's nib
 
 `nib` is a small custom scripting language, meant to be embedded inside a host application rather than run standalone. C-like syntax (`var`, `if`/`else`, `while`, `for`, top-level `func`s with no closures, arrays, etc.).
@@ -141,7 +143,7 @@ No standard library/builtins by default (the host opts scripts into native funct
 
 ### Installation
 
-1. Download the extension build for your platform from the [Releases page](https://github.com/sntworx/nib/releases).
+1. Download the extension build for your platform from the [Releases page](https://github.com/zlysanta/nib/releases).
 2. Copy it into your PHP install's `extension_dir` (find that path with `php -i | grep extension_dir`). **On macOS**, PHP looks for a `.so` file even though Rust produces a `.dylib` — rename it to end in `.so` after copying it over, or PHP won't find it.
 3. Enable it in `php.ini`:
    ```ini
