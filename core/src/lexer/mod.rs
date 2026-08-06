@@ -51,7 +51,7 @@ impl Lexer {
         }
     }
 
-    fn skip_whitespace_and_comments(&mut self) {
+    fn skip_whitespace_and_comments(&mut self) -> Result<(), LexError> {
         loop {
             match self.peek() {
                 Some(c) if c.is_whitespace() => {
@@ -66,9 +66,35 @@ impl Lexer {
                         self.advance();
                     }
                 }
+                Some('/') if self.peek_at(1) == Some('*') => {
+                    let start_line = self.line;
+                    let start_col = self.col;
+                    self.advance(); // consume '/'
+                    self.advance(); // consume '*'
+                    loop {
+                        match self.peek() {
+                            None => {
+                                return Err(LexError {
+                                    message: "unterminated block comment".to_string(),
+                                    line: start_line,
+                                    col: start_col,
+                                });
+                            }
+                            Some('*') if self.peek_at(1) == Some('/') => {
+                                self.advance();
+                                self.advance();
+                                break;
+                            }
+                            Some(_) => {
+                                self.advance();
+                            }
+                        }
+                    }
+                }
                 _ => break,
             }
         }
+        Ok(())
     }
 
     fn scan_string(&mut self) -> Result<TokenKind, LexError> {
@@ -218,7 +244,7 @@ impl Lexer {
     }
 
     fn next_token(&mut self) -> Result<Token, LexError> {
-        self.skip_whitespace_and_comments();
+        self.skip_whitespace_and_comments()?;
 
         let line = self.line;
         let col = self.col;

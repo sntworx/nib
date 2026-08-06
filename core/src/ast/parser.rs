@@ -305,6 +305,22 @@ impl Parser {
     }
 
     fn assignment(&mut self) -> Result<Expr, ParseError> {
+        // `++x`/`--x` desugar exactly like their postfix counterparts below
+        // (`x = x + 1`/`x = x - 1`) - lame has no old-vs-new-value distinction
+        // between pre/post since increment is statement-only either way,
+        // never embeddable mid-expression (same restriction postfix and
+        // compound assignment already have). Checked before `self.or()` so
+        // the target is parsed at postfix precedence, not swallowing a whole
+        // trailing expression like `++x + 1`.
+        if self.match_kind(&TokenKind::PlusPlus) {
+            let target = self.postfix()?;
+            return self.incr_decr(target, BinaryOp::Add);
+        }
+        if self.match_kind(&TokenKind::MinusMinus) {
+            let target = self.postfix()?;
+            return self.incr_decr(target, BinaryOp::Sub);
+        }
+
         let expr = self.or()?;
 
         // `x++`/`x--` desugar to `x = x + 1`/`x = x - 1`, same trick as
