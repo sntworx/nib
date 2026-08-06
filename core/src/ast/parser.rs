@@ -1,39 +1,25 @@
-use std::fmt;
-
-use crate::ast::types::{
-    AstNode, AstNodeKind, BinaryOp, Expr, ForStmt, FuncDecl, IfStmt, Literal, UnaryOp, VarAssign, WhileStmt,
-};
 use crate::ast::Ast;
+use crate::ast::types::{
+    AstNode, AstNodeKind, BinaryOp, Expr, ForStmt, FuncDecl, IfStmt, Literal, ParseError, UnaryOp,
+    VarAssign, WhileStmt,
+};
 use crate::lexer::{Token, TokenKind};
-
-#[derive(Debug)]
-pub struct ParseError {
-    pub message: String,
-    pub line: usize,
-    pub col: usize,
-}
-
-impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Parse error at {}:{}: {}", self.line, self.col, self.message)
-    }
-}
 
 pub struct Parser {
     tokens: Vec<Token>,
     pos: usize,
-    // Only true at the outermost statement list - false the instant the
-    // parser enters any `{ ... }` block, whether from `if`/`while`/`for`/
-    // `func` or a bare block statement. `func` declarations check this
-    // directly, so they're rejected at any nesting depth, not just inside
-    // another `func` or a loop specifically.
     at_top_level: bool,
     in_loop: bool,
 }
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Parser { tokens, pos: 0, at_top_level: true, in_loop: false }
+        Parser {
+            tokens,
+            pos: 0,
+            at_top_level: true,
+            in_loop: false,
+        }
     }
 
     pub fn parse(mut self) -> Result<Ast, ParseError> {
@@ -206,14 +192,22 @@ impl Parser {
                 let line = self.peek().line;
                 let col = self.peek().col;
                 let nested = self.if_stmt()?;
-                Some(vec![AstNode { kind: AstNodeKind::If(nested), line, col }])
+                Some(vec![AstNode {
+                    kind: AstNodeKind::If(nested),
+                    line,
+                    col,
+                }])
             } else {
                 Some(self.block()?)
             }
         } else {
             None
         };
-        Ok(IfStmt { condition, then_branch, else_branch })
+        Ok(IfStmt {
+            condition,
+            then_branch,
+            else_branch,
+        })
     }
 
     fn while_stmt(&mut self) -> Result<WhileStmt, ParseError> {
@@ -227,7 +221,10 @@ impl Parser {
         let body = self.block();
         self.in_loop = saved_in_loop;
 
-        Ok(WhileStmt { condition, body: body? })
+        Ok(WhileStmt {
+            condition,
+            body: body?,
+        })
     }
 
     fn for_stmt(&mut self) -> Result<ForStmt, ParseError> {
@@ -266,7 +263,12 @@ impl Parser {
         let body = self.block();
         self.in_loop = saved_in_loop;
 
-        Ok(ForStmt { init, condition, post, body: body? })
+        Ok(ForStmt {
+            init,
+            condition,
+            post,
+            body: body?,
+        })
     }
 
     fn block(&mut self) -> Result<Vec<AstNode>, ParseError> {
@@ -337,20 +339,28 @@ impl Parser {
         match expr {
             Expr::Ident(name) => {
                 let value = match compound_op {
-                    Some(op) => {
-                        Expr::Binary { op, left: Box::new(Expr::Ident(name.clone())), right: Box::new(value) }
-                    }
+                    Some(op) => Expr::Binary {
+                        op,
+                        left: Box::new(Expr::Ident(name.clone())),
+                        right: Box::new(value),
+                    },
                     None => value,
                 };
-                Ok(Expr::Assign { name, value: Box::new(value) })
+                Ok(Expr::Assign {
+                    name,
+                    value: Box::new(value),
+                })
             }
             // unlike the Ident case above, the compound op isn't desugared
             // here into a Binary - the interpreter applies it directly so
             // `object`/`index` only get evaluated once (they may have side
             // effects, e.g. `arr[i()] += 1`)
-            Expr::Index { object, index } => {
-                Ok(Expr::IndexAssign { object, index, op: compound_op, value: Box::new(value) })
-            }
+            Expr::Index { object, index } => Ok(Expr::IndexAssign {
+                object,
+                index,
+                op: compound_op,
+                value: Box::new(value),
+            }),
             _ => Err(self.error("invalid assignment target")),
         }
     }
@@ -379,7 +389,11 @@ impl Parser {
         let mut expr = self.and()?;
         while self.match_kind(&TokenKind::OrOr) {
             let right = self.and()?;
-            expr = Expr::Binary { op: BinaryOp::Or, left: Box::new(expr), right: Box::new(right) };
+            expr = Expr::Binary {
+                op: BinaryOp::Or,
+                left: Box::new(expr),
+                right: Box::new(right),
+            };
         }
         Ok(expr)
     }
@@ -388,7 +402,11 @@ impl Parser {
         let mut expr = self.equality()?;
         while self.match_kind(&TokenKind::AndAnd) {
             let right = self.equality()?;
-            expr = Expr::Binary { op: BinaryOp::And, left: Box::new(expr), right: Box::new(right) };
+            expr = Expr::Binary {
+                op: BinaryOp::And,
+                left: Box::new(expr),
+                right: Box::new(right),
+            };
         }
         Ok(expr)
     }
@@ -404,7 +422,11 @@ impl Parser {
                 break;
             };
             let right = self.comparison()?;
-            expr = Expr::Binary { op, left: Box::new(expr), right: Box::new(right) };
+            expr = Expr::Binary {
+                op,
+                left: Box::new(expr),
+                right: Box::new(right),
+            };
         }
         Ok(expr)
     }
@@ -424,7 +446,11 @@ impl Parser {
                 break;
             };
             let right = self.term()?;
-            expr = Expr::Binary { op, left: Box::new(expr), right: Box::new(right) };
+            expr = Expr::Binary {
+                op,
+                left: Box::new(expr),
+                right: Box::new(right),
+            };
         }
         Ok(expr)
     }
@@ -440,7 +466,11 @@ impl Parser {
                 break;
             };
             let right = self.factor()?;
-            expr = Expr::Binary { op, left: Box::new(expr), right: Box::new(right) };
+            expr = Expr::Binary {
+                op,
+                left: Box::new(expr),
+                right: Box::new(right),
+            };
         }
         Ok(expr)
     }
@@ -456,7 +486,11 @@ impl Parser {
                 break;
             };
             let right = self.unary()?;
-            expr = Expr::Binary { op, left: Box::new(expr), right: Box::new(right) };
+            expr = Expr::Binary {
+                op,
+                left: Box::new(expr),
+                right: Box::new(right),
+            };
         }
         Ok(expr)
     }
@@ -464,10 +498,16 @@ impl Parser {
     fn unary(&mut self) -> Result<Expr, ParseError> {
         if self.match_kind(&TokenKind::Not) {
             let expr = self.unary()?;
-            Ok(Expr::Unary { op: UnaryOp::Not, expr: Box::new(expr) })
+            Ok(Expr::Unary {
+                op: UnaryOp::Not,
+                expr: Box::new(expr),
+            })
         } else if self.match_kind(&TokenKind::Minus) {
             let expr = self.unary()?;
-            Ok(Expr::Unary { op: UnaryOp::Neg, expr: Box::new(expr) })
+            Ok(Expr::Unary {
+                op: UnaryOp::Neg,
+                expr: Box::new(expr),
+            })
         } else {
             self.postfix()
         }
@@ -487,11 +527,17 @@ impl Parser {
                     }
                 }
                 self.expect(&TokenKind::RParen, "after call arguments")?;
-                expr = Expr::Call { callee: Box::new(expr), args };
+                expr = Expr::Call {
+                    callee: Box::new(expr),
+                    args,
+                };
             } else if self.match_kind(&TokenKind::LBracket) {
                 let index = self.expression()?;
                 self.expect(&TokenKind::RBracket, "to close index expression")?;
-                expr = Expr::Index { object: Box::new(expr), index: Box::new(index) };
+                expr = Expr::Index {
+                    object: Box::new(expr),
+                    index: Box::new(index),
+                };
             } else {
                 break;
             }

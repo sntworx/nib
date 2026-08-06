@@ -27,11 +27,18 @@ fn main() -> ExitCode {
     };
 
     let mut lame = Lame::new();
-    lame.register("print", |args: &[Value]| {
-        let rendered = args.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(" ");
+
+    lame.register_func("print", |args: &[Value]| {
+        let rendered = args
+            .iter()
+            .map(|v| v.to_string())
+            .collect::<Vec<_>>()
+            .join(" ");
         println!("{}", rendered);
         Ok(Value::Null)
     });
+
+    lame.disable_keywords(vec!["if"]);
 
     if let Err(e) = lame.parse(&source) {
         eprintln!("{}", e);
@@ -46,11 +53,15 @@ fn main() -> ExitCode {
             }
         }
         Some(path) if path == PathBuf::from("-") => {
-            let ast = lame.ast().expect("ast is always set after a successful parse");
+            let ast = lame
+                .ast()
+                .expect("ast is always set after a successful parse");
             println!("{:#?}", ast);
         }
         Some(path) => {
-            let ast = lame.ast().expect("ast is always set after a successful parse");
+            let ast = lame
+                .ast()
+                .expect("ast is always set after a successful parse");
             let contents = format!("{:#?}", ast);
             if let Err(e) = fs::write(&path, contents) {
                 eprintln!("Failed to write AST to '{}': {}", path.display(), e);

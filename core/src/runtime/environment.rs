@@ -8,7 +8,9 @@ pub struct Environment {
 
 impl Environment {
     pub fn new() -> Self {
-        Environment { scopes: vec![HashMap::new()] }
+        Environment {
+            scopes: vec![HashMap::new()],
+        }
     }
 
     pub fn push_scope(&mut self) {
@@ -20,7 +22,10 @@ impl Environment {
     }
 
     pub fn define(&mut self, name: String, value: Value) {
-        self.scopes.last_mut().expect("at least one scope").insert(name, value);
+        self.scopes
+            .last_mut()
+            .expect("at least one scope")
+            .insert(name, value);
     }
 
     pub fn get(&self, name: &str) -> Option<&Value> {

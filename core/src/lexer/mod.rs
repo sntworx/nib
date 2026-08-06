@@ -1,20 +1,24 @@
 mod types;
 pub use types::{LexError, Token, TokenKind};
 
+use std::collections::HashSet;
+
 pub struct Lexer {
     chars: Vec<char>,
     pos: usize,
     line: usize,
     col: usize,
+    disabled_keywords: HashSet<String>,
 }
 
 impl Lexer {
-    pub fn new(source: &str) -> Self {
+    pub fn new(source: &str, disabled_keywords: &[String]) -> Self {
         Lexer {
             chars: source.chars().collect(),
             pos: 0,
             line: 1,
             col: 1,
+            disabled_keywords: disabled_keywords.iter().cloned().collect(),
         }
     }
 
@@ -80,7 +84,7 @@ impl Lexer {
                         message: "unterminated string literal".to_string(),
                         line: start_line,
                         col: start_col,
-                    })
+                    });
                 }
                 Some('"') => {
                     self.advance();
@@ -105,7 +109,7 @@ impl Lexer {
                                 message: "unterminated string literal".to_string(),
                                 line: start_line,
                                 col: start_col,
-                            })
+                            });
                         }
                     }
                 }
@@ -168,7 +172,9 @@ impl Lexer {
         }
     }
 
-    fn scan_identifier(&mut self) -> TokenKind {
+    fn scan_identifier(&mut self) -> Result<TokenKind, LexError> {
+        let start_line = self.line;
+        let start_col = self.col;
         let mut text = String::new();
         while let Some(c) = self.peek() {
             if c.is_alphanumeric() || c == '_' {
@@ -178,21 +184,37 @@ impl Lexer {
                 break;
             }
         }
-        match text.as_str() {
-            "var" => TokenKind::Var,
-            "if" => TokenKind::If,
-            "else" => TokenKind::Else,
-            "true" => TokenKind::True,
-            "false" => TokenKind::False,
-            "func" => TokenKind::Func,
-            "return" => TokenKind::Return,
-            "null" => TokenKind::Null,
-            "while" => TokenKind::While,
-            "for" => TokenKind::For,
-            "break" => TokenKind::Break,
-            "continue" => TokenKind::Continue,
-            _ => TokenKind::Ident(text),
+        let keyword = match text.as_str() {
+            "var" => Some(TokenKind::Var),
+            "if" => Some(TokenKind::If),
+            "else" => Some(TokenKind::Else),
+            "true" => Some(TokenKind::True),
+            "false" => Some(TokenKind::False),
+            "func" => Some(TokenKind::Func),
+            "return" => Some(TokenKind::Return),
+            "null" => Some(TokenKind::Null),
+            "while" => Some(TokenKind::While),
+            "for" => Some(TokenKind::For),
+            "break" => Some(TokenKind::Break),
+            "continue" => Some(TokenKind::Continue),
+            _ => None,
+        };
+
+        // disabled_keywords only ever gates language keywords, never plain
+        // identifiers - otherwise disabling "add" would also block a user's
+        // own function/variable named "add", which isn't a keyword at all.
+        if let Some(kind) = keyword {
+            if self.disabled_keywords.contains(&text) {
+                return Err(LexError {
+                    message: format!("keyword '{}' is disabled", text),
+                    line: start_line,
+                    col: start_col,
+                });
+            }
+            return Ok(kind);
         }
+
+        Ok(TokenKind::Ident(text))
     }
 
     fn next_token(&mut self) -> Result<Token, LexError> {
@@ -207,7 +229,7 @@ impl Lexer {
                     kind: TokenKind::Eof,
                     line,
                     col,
-                })
+                });
             }
             Some(c) => c,
         };
@@ -215,7 +237,7 @@ impl Lexer {
         let kind = match c {
             '"' => self.scan_string()?,
             c if c.is_ascii_digit() => self.scan_number()?,
-            c if c.is_alphabetic() || c == '_' => self.scan_identifier(),
+            c if c.is_alphabetic() || c == '_' => self.scan_identifier()?,
             ';' => {
                 self.advance();
                 TokenKind::Semicolon
@@ -247,11 +269,11 @@ impl Lexer {
             '.' => {
                 self.advance();
                 TokenKind::Dot
-            },
+            }
             ',' => {
                 self.advance();
                 TokenKind::Comma
-            },
+            }
             '+' => {
                 self.advance();
                 if self.matches('=') {
@@ -349,7 +371,7 @@ impl Lexer {
                     message: format!("unexpected character '{}'", other),
                     line,
                     col,
-                })
+                });
             }
         };
 

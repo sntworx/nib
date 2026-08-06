@@ -23,35 +23,35 @@ pub enum TokenKind {
     Continue,
 
     // punctuation
-    Semicolon,  // ;
-    LParen,     // (
-    RParen,     // )
-    LBrace,     // {
-    RBrace,     // }
-    LBracket,   // [
-    RBracket,   // ]
-    Dot,        // .
-    Comma,      // ,
+    Semicolon, // ;
+    LParen,    // (
+    RParen,    // )
+    LBrace,    // {
+    RBrace,    // }
+    LBracket,  // [
+    RBracket,  // ]
+    Dot,       // .
+    Comma,     // ,
 
     // operators
-    Assign,   // =
-    Eq,       // ==
-    NotEq,    // !=
-    Lt,       // <
-    LtEq,     // <=
-    Gt,       // >
-    GtEq,     // >=
-    Not,      // !
-    AndAnd,   // &&
-    OrOr,     // ||
-    Plus,     // +
-    Minus,    // -
-    Star,     // *
-    Slash,    // /
-    PlusEq,   // +=
-    MinusEq,  // -=
-    StarEq,   // *=
-    SlashEq,  // /=
+    Assign,     // =
+    Eq,         // ==
+    NotEq,      // !=
+    Lt,         // <
+    LtEq,       // <=
+    Gt,         // >
+    GtEq,       // >=
+    Not,        // !
+    AndAnd,     // &&
+    OrOr,       // ||
+    Plus,       // +
+    Minus,      // -
+    Star,       // *
+    Slash,      // /
+    PlusEq,     // +=
+    MinusEq,    // -=
+    StarEq,     // *=
+    SlashEq,    // /=
     PlusPlus,   // ++
     MinusMinus, // --
 
@@ -137,6 +137,10 @@ pub struct LexError {
 
 impl fmt::Display for LexError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Lex error at {}:{}: {}", self.line, self.col, self.message)
+        write!(
+            f,
+            "Lex error at {}:{}: {}",
+            self.line, self.col, self.message
+        )
     }
 }

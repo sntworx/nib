@@ -1,5 +1,5 @@
-mod lexer;
 mod ast;
+mod lexer;
 mod runtime;
 mod types;
 
@@ -13,23 +13,36 @@ pub use runtime::Value;
 pub struct Lame {
     ast: Option<Ast>,
     interpreter: Interpreter,
+    disabled_keywords: Vec<String>,
 }
 
 impl Lame {
     pub fn new() -> Self {
-        Lame { ast: None, interpreter: Interpreter::new() }
+        Lame {
+            ast: None,
+            interpreter: Interpreter::new(),
+            disabled_keywords: vec![],
+        }
     }
 
-    // Binds a Rust function into the global scope under `name`, callable from
-    // Lame scripts like any other function (e.g. `lame.register("print", ...)`
-    // makes `print(...)` resolve instead of erroring as undefined). Can be
-    // called any time before `run`.
-    pub fn register(&mut self, name: impl Into<String>, f: impl Fn(&[Value]) -> Result<Value, String> + 'static) {
+    pub fn register_func(
+        &mut self,
+        name: impl Into<String>,
+        f: impl Fn(&[Value]) -> Result<Value, String> + 'static,
+    ) {
         self.interpreter.register_native(name, f);
     }
 
+    pub fn disable_keywords(&mut self, keywords: Vec<&str>) {
+        for keyword in keywords {
+            if !self.disabled_keywords.iter().any(|k| k == keyword) {
+                self.disabled_keywords.push(keyword.to_string());
+            }
+        }
+    }
+
     pub fn parse(&mut self, source: &str) -> Result<(), Error> {
-        let mut lexer = Lexer::new(source);
+        let mut lexer = Lexer::new(source, &self.disabled_keywords);
         let tokens = lexer.tokenize()?;
         self.ast = Some(Ast::parse(tokens)?);
         Ok(())

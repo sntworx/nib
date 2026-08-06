@@ -87,6 +87,10 @@ pub struct RuntimeError {
 
 impl fmt::Display for RuntimeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Runtime error at {}:{}: {}", self.line, self.col, self.message)
+        write!(
+            f,
+            "Runtime error at {}:{}: {}",
+            self.line, self.col, self.message
+        )
     }
 }

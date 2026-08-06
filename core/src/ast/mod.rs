@@ -1,7 +1,7 @@
 mod parser;
 pub(crate) mod types;
 
-pub use parser::ParseError;
+pub use types::ParseError;
 
 use parser::Parser;
 use types::AstNode;

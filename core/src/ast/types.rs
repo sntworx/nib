@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Literal {
     Int(i64),
@@ -20,12 +22,12 @@ pub enum BinaryOp {
     Mul, // *
     Div, // /
 
-    Eq,   // ==
+    Eq,    // ==
     NotEq, // !=
-    Lt,   // <
-    LtEq, // <=
-    Gt,   // >
-    GtEq, // >=
+    Lt,    // <
+    LtEq,  // <=
+    Gt,    // >
+    GtEq,  // >=
 
     And, // &&
     Or,  // ||
@@ -120,4 +122,21 @@ pub struct AstNode {
     pub kind: AstNodeKind,
     pub line: usize,
     pub col: usize,
+}
+
+#[derive(Debug)]
+pub struct ParseError {
+    pub message: String,
+    pub line: usize,
+    pub col: usize,
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Parse error at {}:{}: {}",
+            self.line, self.col, self.message
+        )
+    }
 }

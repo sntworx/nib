@@ -1,0 +1,11 @@
+[package]
+name = "php-bindings"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+ext-php-rs = "0.15.15"
+lame_core = { path = "../core" }

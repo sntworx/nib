@@ -1,18 +1,14 @@
 use std::rc::Rc;
 
-use crate::ast::types::{
-    AstNode, AstNodeKind, BinaryOp, Expr, ForStmt, FuncDecl, IfStmt, Literal, UnaryOp, VarAssign, WhileStmt,
-};
 use crate::ast::Ast;
+use crate::ast::types::{
+    AstNode, AstNodeKind, BinaryOp, Expr, ForStmt, FuncDecl, IfStmt, Literal, UnaryOp, VarAssign,
+    WhileStmt,
+};
 use crate::runtime::environment::Environment;
 use crate::runtime::helpers::{as_f64, checked_float, values_equal};
 use crate::runtime::types::{Function, NativeFunction, RuntimeError, Value};
 
-// Signals whether a statement completed normally or hit a `return`/`break`/
-// `continue`, so control can unwind through nested blocks/ifs without
-// running the rest of them. `Break`/`Continue` are always intercepted by the
-// nearest enclosing `exec_while`/`exec_for_body` - the parser guarantees
-// they never appear outside a loop, so they never reach `run`/`call_function`.
 enum Flow {
     Normal,
     Return(Value),
@@ -20,27 +16,29 @@ enum Flow {
     Continue,
 }
 
-// Each call recurses through several native Rust stack frames, so an
-// unbounded (e.g. buggy) recursive script would otherwise overflow the real
-// stack and abort the process instead of failing as a normal RuntimeError.
 const MAX_CALL_DEPTH: usize = 1000;
 
 pub struct Interpreter {
     env: Environment,
     call_depth: usize,
-    // Position of whichever statement is currently executing, so any error
-    // raised while evaluating its expressions (however deeply nested) can be
-    // reported at a meaningful source location.
     current_pos: (usize, usize),
 }
 
 impl Interpreter {
     pub fn new() -> Self {
-        Interpreter { env: Environment::new(), call_depth: 0, current_pos: (0, 0) }
+        Interpreter {
+            env: Environment::new(),
+            call_depth: 0,
+            current_pos: (0, 0),
+        }
     }
 
     fn error(&self, message: String) -> RuntimeError {
-        RuntimeError { message, line: self.current_pos.0, col: self.current_pos.1 }
+        RuntimeError {
+            message,
+            line: self.current_pos.0,
+            col: self.current_pos.1,
+        }
     }
 
     // Binds a Rust function into the global scope under `name`, callable from
@@ -48,10 +46,18 @@ impl Interpreter {
     // composes with the rest of the interpreter for free (can be passed
     // around, shadowed, etc.) - the only new code is dispatching to it in
     // `eval_call` below.
-    pub fn register_native(&mut self, name: impl Into<String>, f: impl Fn(&[Value]) -> Result<Value, String> + 'static) {
+    pub fn register_native(
+        &mut self,
+        name: impl Into<String>,
+        f: impl Fn(&[Value]) -> Result<Value, String> + 'static,
+    ) {
         let name = name.into();
-        let native = NativeFunction { name: name.clone(), func: Box::new(f) };
-        self.env.define(name, Value::NativeFunction(Rc::new(native)));
+        let native = NativeFunction {
+            name: name.clone(),
+            func: Box::new(f),
+        };
+        self.env
+            .define(name, Value::NativeFunction(Rc::new(native)));
     }
 
     pub fn run(&mut self, ast: &Ast) -> Result<(), RuntimeError> {
@@ -79,8 +85,13 @@ impl Interpreter {
             AstNodeKind::If(if_stmt) => self.exec_if(if_stmt),
             AstNodeKind::Block(nodes) => self.exec_block(nodes),
             AstNodeKind::FuncDecl(FuncDecl { name, params, body }) => {
-                let function = Function { name: name.clone(), params: params.clone(), body: body.clone() };
-                self.env.define(name.clone(), Value::Function(Rc::new(function)));
+                let function = Function {
+                    name: name.clone(),
+                    params: params.clone(),
+                    body: body.clone(),
+                };
+                self.env
+                    .define(name.clone(), Value::Function(Rc::new(function)));
                 Ok(Flow::Normal)
             }
             AstNodeKind::Return(expr) => {
@@ -113,7 +124,9 @@ impl Interpreter {
             match self.eval(&while_stmt.condition)? {
                 Value::Bool(true) => {}
                 Value::Bool(false) => return Ok(Flow::Normal),
-                other => return Err(self.error(format!("while condition must be a bool, got {}", other))),
+                other => {
+                    return Err(self.error(format!("while condition must be a bool, got {}", other)));
+                }
             }
             match self.exec_block(&while_stmt.body)? {
                 Flow::Normal | Flow::Continue => {}
@@ -141,7 +154,11 @@ impl Interpreter {
             let should_continue = match &for_stmt.condition {
                 Some(condition) => match self.eval(condition)? {
                     Value::Bool(b) => b,
-                    other => return Err(self.error(format!("for condition must be a bool, got {}", other))),
+                    other => {
+                        return Err(
+                            self.error(format!("for condition must be a bool, got {}", other))
+                        );
+                    }
                 },
                 None => true,
             };
@@ -198,16 +215,24 @@ impl Interpreter {
             Expr::Binary { op, left, right } => self.eval_binary(op, left, right),
             Expr::Assign { name, value } => {
                 let value = self.eval(value)?;
-                self.env.assign(name, value.clone()).map_err(|msg| self.error(msg))?;
+                self.env
+                    .assign(name, value.clone())
+                    .map_err(|msg| self.error(msg))?;
                 Ok(value)
             }
             Expr::Call { callee, args } => self.eval_call(callee, args),
             Expr::Index { object, index } => self.eval_index(object, index),
-            Expr::IndexAssign { object, index, op, value } => {
-                self.eval_index_assign(object, index, op.as_ref(), value)
-            }
+            Expr::IndexAssign {
+                object,
+                index,
+                op,
+                value,
+            } => self.eval_index_assign(object, index, op.as_ref(), value),
             Expr::Array(elements) => {
-                let values = elements.iter().map(|e| self.eval(e)).collect::<Result<Vec<_>, _>>()?;
+                let values = elements
+                    .iter()
+                    .map(|e| self.eval(e))
+                    .collect::<Result<Vec<_>, _>>()?;
                 Ok(Value::Array(values))
             }
             Expr::Grouping(inner) => self.eval(inner),
@@ -224,7 +249,12 @@ impl Interpreter {
         }
     }
 
-    fn eval_binary(&mut self, op: &BinaryOp, left: &Expr, right: &Expr) -> Result<Value, RuntimeError> {
+    fn eval_binary(
+        &mut self,
+        op: &BinaryOp,
+        left: &Expr,
+        right: &Expr,
+    ) -> Result<Value, RuntimeError> {
         // logical operators short-circuit, so evaluate the right side lazily
         if matches!(op, BinaryOp::And | BinaryOp::Or) {
             let left_bool = match self.eval(left)? {
@@ -249,42 +279,46 @@ impl Interpreter {
     // The value-level half of eval_binary, split out so compound index
     // assignment (`arr[i] += value`) can reuse it without re-evaluating
     // `left`/`right` as expressions - it already has both sides as Values.
-    fn apply_binary_op(&self, op: &BinaryOp, left_val: Value, right_val: Value) -> Result<Value, RuntimeError> {
+    fn apply_binary_op(
+        &self,
+        op: &BinaryOp,
+        left_val: Value,
+        right_val: Value,
+    ) -> Result<Value, RuntimeError> {
         use BinaryOp::*;
         match (op, left_val, right_val) {
             (Eq, a, b) => Ok(Value::Bool(values_equal(&a, &b))),
             (NotEq, a, b) => Ok(Value::Bool(!values_equal(&a, &b))),
-
             (Add, Value::Str(a), Value::Str(b)) => Ok(Value::Str(a + &b)),
-            // string + number stringifies the number - deliberately scoped to
-            // just Int/Float (not Bool/Array/Function/Null); cross-type
-            // comparisons still don't coerce, this is only for `+`
             (Add, Value::Str(a), Value::Int(b)) => Ok(Value::Str(format!("{}{}", a, b))),
             (Add, Value::Str(a), Value::Float(b)) => Ok(Value::Str(format!("{}{}", a, b))),
             (Add, Value::Int(a), Value::Str(b)) => Ok(Value::Str(format!("{}{}", a, b))),
             (Add, Value::Float(a), Value::Str(b)) => Ok(Value::Str(format!("{}{}", a, b))),
-
-            (Add, Value::Int(a), Value::Int(b)) => {
-                a.checked_add(b).map(Value::Int).ok_or_else(|| self.error("integer overflow".to_string()))
-            }
-            (Sub, Value::Int(a), Value::Int(b)) => {
-                a.checked_sub(b).map(Value::Int).ok_or_else(|| self.error("integer overflow".to_string()))
-            }
-            (Mul, Value::Int(a), Value::Int(b)) => {
-                a.checked_mul(b).map(Value::Int).ok_or_else(|| self.error("integer overflow".to_string()))
-            }
+            (Add, Value::Int(a), Value::Int(b)) => a
+                .checked_add(b)
+                .map(Value::Int)
+                .ok_or_else(|| self.error("integer overflow".to_string())),
+            (Sub, Value::Int(a), Value::Int(b)) => a
+                .checked_sub(b)
+                .map(Value::Int)
+                .ok_or_else(|| self.error("integer overflow".to_string())),
+            (Mul, Value::Int(a), Value::Int(b)) => a
+                .checked_mul(b)
+                .map(Value::Int)
+                .ok_or_else(|| self.error("integer overflow".to_string())),
             (Div, Value::Int(a), Value::Int(b)) => {
                 if b == 0 {
                     Err(self.error("division by zero".to_string()))
                 } else {
-                    a.checked_div(b).map(Value::Int).ok_or_else(|| self.error("integer overflow".to_string()))
+                    a.checked_div(b)
+                        .map(Value::Int)
+                        .ok_or_else(|| self.error("integer overflow".to_string()))
                 }
             }
             (Lt, Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a < b)),
             (LtEq, Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a <= b)),
             (Gt, Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a > b)),
             (GtEq, Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a >= b)),
-
             (Lt, Value::Str(a), Value::Str(b)) => Ok(Value::Bool(a < b)),
             (LtEq, Value::Str(a), Value::Str(b)) => Ok(Value::Bool(a <= b)),
             (Gt, Value::Str(a), Value::Str(b)) => Ok(Value::Bool(a > b)),
@@ -323,11 +357,17 @@ impl Interpreter {
 
         let idx = match index_val {
             Value::Int(i) => i,
-            other => return Err(self.error(format!("array index must be an integer, got {}", other))),
+            other => {
+                return Err(self.error(format!("array index must be an integer, got {}", other)));
+            }
         };
 
         if idx < 0 || idx as usize >= items.len() {
-            return Err(self.error(format!("index {} out of bounds for array of length {}", idx, items.len())));
+            return Err(self.error(format!(
+                "index {} out of bounds for array of length {}",
+                idx,
+                items.len()
+            )));
         }
 
         Ok(items[idx as usize].clone())
@@ -346,12 +386,21 @@ impl Interpreter {
     // element, and hand the patched copy back to the caller to write
     // wherever `object` actually lives (a variable, or another level of
     // array nesting).
-    fn with_index_replaced(&mut self, object: &Expr, idx: i64, new_elem: Value) -> Result<Value, RuntimeError> {
+    fn with_index_replaced(
+        &mut self,
+        object: &Expr,
+        idx: i64,
+        new_elem: Value,
+    ) -> Result<Value, RuntimeError> {
         let mut array = self.eval(object)?;
         match &mut array {
             Value::Array(items) => {
                 if idx < 0 || idx as usize >= items.len() {
-                    return Err(self.error(format!("index {} out of bounds for array of length {}", idx, items.len())));
+                    return Err(self.error(format!(
+                        "index {} out of bounds for array of length {}",
+                        idx,
+                        items.len()
+                    )));
                 }
                 items[idx as usize] = new_elem;
                 Ok(array)
@@ -397,7 +446,11 @@ impl Interpreter {
             other => return Err(self.error(format!("cannot index into {}", other))),
         };
         if idx < 0 || idx as usize >= items.len() {
-            return Err(self.error(format!("index {} out of bounds for array of length {}", idx, items.len())));
+            return Err(self.error(format!(
+                "index {} out of bounds for array of length {}",
+                idx,
+                items.len()
+            )));
         }
         let idx_usize = idx as usize;
         let current_elem = items[idx_usize].clone();
@@ -418,8 +471,6 @@ impl Interpreter {
     }
 
     fn eval_call(&mut self, callee: &Expr, args: &[Expr]) -> Result<Value, RuntimeError> {
-        // resolve bare identifiers specially so an unknown name reads as
-        // "undefined function" rather than the generic "undefined variable"
         let callee_val = match callee {
             Expr::Ident(name) => match self.env.get(name).cloned() {
                 Some(value) => value,
@@ -438,11 +489,17 @@ impl Interpreter {
                         args.len()
                     )));
                 }
-                let arg_values = args.iter().map(|arg| self.eval(arg)).collect::<Result<Vec<_>, _>>()?;
+                let arg_values = args
+                    .iter()
+                    .map(|arg| self.eval(arg))
+                    .collect::<Result<Vec<_>, _>>()?;
                 self.call_function(&function, arg_values)
             }
             Value::NativeFunction(native) => {
-                let arg_values = args.iter().map(|arg| self.eval(arg)).collect::<Result<Vec<_>, _>>()?;
+                let arg_values = args
+                    .iter()
+                    .map(|arg| self.eval(arg))
+                    .collect::<Result<Vec<_>, _>>()?;
                 (native.func)(&arg_values).map_err(|msg| self.error(msg))
             }
             other => Err(self.error(format!("cannot call {}", other))),
@@ -452,9 +509,16 @@ impl Interpreter {
     // Function bodies only see the global scope plus their own parameters and
     // locals - not the caller's locals - so a call temporarily strips those
     // away and restores them once the call returns.
-    fn call_function(&mut self, function: &Function, arg_values: Vec<Value>) -> Result<Value, RuntimeError> {
+    fn call_function(
+        &mut self,
+        function: &Function,
+        arg_values: Vec<Value>,
+    ) -> Result<Value, RuntimeError> {
         if self.call_depth >= MAX_CALL_DEPTH {
-            return Err(self.error(format!("stack overflow: exceeded maximum call depth of {}", MAX_CALL_DEPTH)));
+            return Err(self.error(format!(
+                "stack overflow: exceeded maximum call depth of {}",
+                MAX_CALL_DEPTH
+            )));
         }
         self.call_depth += 1;
 
