@@ -6,7 +6,7 @@ TypeScript/WebAssembly bindings for `nib` — a small custom scripting language 
 
 It has no standard library and nothing pre-bound by default: your app decides exactly which native functions a script is allowed to call (`registerFunc`), and can even strip specific keywords out of the language for a given script (`disableKeywords`) — e.g. dropping `while`/`for` to rule out unbounded loops. That opt-in-only surface makes it a fit for running untrusted or user-authored logic inside a larger app: plugin scripting, rules/workflow engines, user-defined formulas, that kind of thing.
 
-Full language reference, syntax guide, and the PHP binding live in the [main repo](https://github.com/zlysanta/nib).
+Full language reference, syntax guide, and the PHP binding live in the [main repo](https://github.com/sntworx/nib).
 
 ## Installation
 

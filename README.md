@@ -143,7 +143,7 @@ No standard library/builtins by default (the host opts scripts into native funct
 
 ### Installation
 
-1. Download the extension build for your platform from the [Releases page](https://github.com/zlysanta/nib/releases).
+1. Download the extension build for your platform from the [Releases page](https://github.com/sntworx/nib/releases).
 2. Copy it into your PHP install's `extension_dir` (find that path with `php -i | grep extension_dir`). **On macOS**, PHP looks for a `.so` file even though Rust produces a `.dylib` — rename it to end in `.so` after copying it over, or PHP won't find it.
 3. Enable it in `php.ini`:
    ```ini
