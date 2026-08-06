@@ -3,17 +3,19 @@ use ext_php_rs::error::Error as PhpRsError;
 use ext_php_rs::prelude::*;
 use ext_php_rs::types::{ZendCallable, ZendObject, Zval};
 use ext_php_rs::zend::ClassEntry;
-use lame_core::{Lame, Value};
+use lame_core::{Lame as LameCore, Value};
 
 #[php_class]
-pub struct LamePhp {
-    lame: Lame,
+pub struct Lame {
+    lame: LameCore,
 }
 
 #[php_impl]
-impl LamePhp {
+impl Lame {
     pub fn __construct() -> Self {
-        LamePhp { lame: Lame::new() }
+        Lame {
+            lame: LameCore::new(),
+        }
     }
 
     pub fn parse(&mut self, source: String) -> PhpResult<()> {
@@ -200,5 +202,5 @@ fn zval_to_value(zval: &Zval) -> Result<Value, String> {
 
 #[php_module]
 pub fn module(module: ModuleBuilder) -> ModuleBuilder {
-    module.name("lame").class::<LamePhp>()
+    module.name("lame").class::<Lame>()
 }

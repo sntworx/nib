@@ -1,18 +1,20 @@
 use js_sys::{Array, Function};
-use lame_core::{Lame, Value};
+use lame_core::{Lame as LameCore, Value};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-pub struct LameTs {
-    lame: Lame,
+pub struct Lame {
+    lame: LameCore,
 }
 
 #[wasm_bindgen]
-impl LameTs {
+impl Lame {
     #[wasm_bindgen(constructor)]
-    pub fn new() -> LameTs {
-        LameTs { lame: Lame::new() }
+    pub fn new() -> Lame {
+        Lame {
+            lame: LameCore::new(),
+        }
     }
 
     pub fn parse(&mut self, source: String) -> Result<(), JsValue> {

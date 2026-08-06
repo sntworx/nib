@@ -131,7 +131,7 @@ No standard library/builtins by default (the host opts scripts into native funct
 ### Workspace layout
 - `core/` — the language implementation (package `lame_core`): lexer, parser, interpreter.
 - `lame/` — a CLI that runs `.lame` scripts, or prints their parsed AST.
-- `bindings-php/` — a PHP extension (via `ext-php-rs`) exposing `lame` as a `LamePhp` class.
+- `bindings-php/` — a PHP extension (via `ext-php-rs`) exposing `lame` as a `Lame` class.
 - `bindings-ts/` — TypeScript/WebAssembly bindings (via `wasm-bindgen`), published as the `@sntworx/lame` npm package.
 
 ## PHP
@@ -151,7 +151,7 @@ No standard library/builtins by default (the host opts scripts into native funct
 ```php
 <?php
 
-$lame = new LamePhp();
+$lame = new Lame();
 
 $lame->registerFunc("print", function (...$args) {
     echo implode(" ", $args), "\n";
@@ -195,10 +195,10 @@ Works out of the box in Node (CommonJS `require` or ESM `import`) and via bundle
 Node or a bundler (auto-initializes, no manual setup step):
 
 ```js
-import { LameTs } from "@sntworx/lame";
-// or: const { LameTs } = require("@sntworx/lame");
+import { Lame } from "@sntworx/lame";
+// or: const { Lame } = require("@sntworx/lame");
 
-const lame = new LameTs();
+const lame = new Lame();
 
 lame.registerFunc("print", (...args) => {
     console.log(...args);
@@ -218,11 +218,11 @@ Direct browser, no bundler — needs an explicit async init first:
 
 ```html
 <script type="module">
-    import init, { LameTs } from "@sntworx/lame/web";
+    import init, { Lame } from "@sntworx/lame/web";
 
     await init(); // fetches and instantiates the .wasm
 
-    const lame = new LameTs();
+    const lame = new Lame();
     lame.registerFunc("print", (...args) => console.log(...args));
     lame.parse('print("hello from the browser");');
     lame.run();
