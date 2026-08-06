@@ -2,6 +2,7 @@
   "name": "@sntworx/lame",
   "version": "0.1.0",
   "description": "TypeScript/WebAssembly bindings for the lame scripting language",
+  "license": "MIT OR Apache-2.0",
   "type": "module",
   "main": "./pkg/node/lame_ts.js",
   "module": "./pkg/bundler/lame_ts.js",

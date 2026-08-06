@@ -6,3 +6,6 @@ members = [
   "bindings-php",
   "bindings-ts"
 ]
+
+[workspace.package]
+license = "MIT OR Apache-2.0"

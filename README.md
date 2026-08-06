@@ -27,6 +27,7 @@ The same language also reaches multiple host runtimes: a PHP extension (`binding
 - [JS/TS](#jsts)
   - [Installation](#installation-1)
   - [Usage](#usage-1)
+- [License](#license)
 
 ### Syntax
 
@@ -241,3 +242,7 @@ try {
 ```
 
 Callbacks passed to `registerFunc` are plain JS functions and, unlike the PHP binding, aren't arity-checked — JS itself doesn't error on a mismatched argument count, so `lame` just calls through and lets normal JS semantics apply (missing arguments become `undefined`, extra ones are ignored).
+
+## License
+
+Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or [MIT license](LICENSE-MIT) at your option.
