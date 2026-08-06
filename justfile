@@ -1,5 +1,9 @@
+# Lame
+
 lame *args:
   cargo run -p lame -- {{args}}
+
+# PHP Bindings
 
 build-bindings-php:
   cargo build -p bindings-php --release
@@ -12,6 +16,8 @@ remove-php-extension:
 
 update-php-extension:
   cd bindings-php && cargo php remove --yes && cargo php install --release --yes
+
+# TS Bindings
 
 build-bindings-ts-web:
   cd bindings-ts && wasm-pack build --release --target web --out-dir pkg/web
@@ -27,6 +33,8 @@ build-bindings-ts: build-bindings-ts-web build-bindings-ts-bundler build-binding
 
 pack-bindings-ts: build-bindings-ts
   cd bindings-ts && npm pack
+
+# Cargo
 
 cargo-fmt:
     cargo +nightly fmt
