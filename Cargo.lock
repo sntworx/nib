@@ -101,7 +101,7 @@ name = "bindings-php"
 version = "0.1.0"
 dependencies = [
  "ext-php-rs",
- "lame_core",
+ "nib_core",
 ]
 
 [[package]]
@@ -109,7 +109,7 @@ name = "bindings-ts"
 version = "0.1.0"
 dependencies = [
  "js-sys",
- "lame_core",
+ "nib_core",
  "wasm-bindgen",
 ]
 
@@ -735,21 +735,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lame"
-version = "0.1.0"
-dependencies = [
- "clap",
- "lame_core",
-]
-
-[[package]]
-name = "lame_core"
-version = "0.1.0"
-dependencies = [
- "regex",
-]
-
-[[package]]
 name = "libbz2-rs-sys"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -838,6 +823,21 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "tempfile",
+]
+
+[[package]]
+name = "nib"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "nib_core",
+]
+
+[[package]]
+name = "nib_core"
+version = "0.1.0"
+dependencies = [
+ "regex",
 ]
 
 [[package]]

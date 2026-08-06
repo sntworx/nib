@@ -1,7 +1,7 @@
-# Lame
+# Nib
 
-lame *args:
-  cargo run -p lame -- {{args}}
+nib *args:
+  cargo run -p nib -- {{args}}
 
 # PHP Bindings
 

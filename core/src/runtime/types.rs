@@ -10,7 +10,7 @@ pub struct Function {
     pub body: Vec<AstNode>,
 }
 
-// A Rust function injected into Lame's global scope. Takes already-evaluated
+// A Rust function injected into Nib's global scope. Takes already-evaluated
 // arguments and returns a plain message on failure (rather than a
 // RuntimeError) since it has no access to the interpreter's source position -
 // same convention as the other places in runtime/ that can't build one

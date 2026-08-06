@@ -1,16 +1,18 @@
-# LAME
+# NIB
 
-### What's lame
+![nib](.github/assets/nib-logo.svg)
 
-`lame` is a small custom scripting language, meant to be embedded inside a host application rather than run standalone. C-like syntax (`var`, `if`/`else`, `while`, `for`, top-level `func`s with no closures, arrays, etc.).
+### What's nib
+
+`nib` is a small custom scripting language, meant to be embedded inside a host application rather than run standalone. C-like syntax (`var`, `if`/`else`, `while`, `for`, top-level `func`s with no closures, arrays, etc.).
 
 It has no standard library and nothing pre-bound by default: the host decides exactly which native functions a script is allowed to call (`register_func`), and can even strip specific keywords out of the language for a given script (`disable_keywords`) — e.g. dropping `while`/`for` to rule out unbounded loops. That opt-in-only surface makes it a fit for running untrusted or user-authored logic inside a larger app: plugin scripting, rules/workflow engines, user-defined formulas, that kind of thing — where you want scripts to only ever touch what you explicitly exposed.
 
-The same language also reaches multiple host runtimes: a PHP extension (`bindings-php`) and TypeScript/WebAssembly bindings (`bindings-ts`) sit on top of the same core interpreter, so identical `lame` scripts and host-defined behavior can run in a PHP backend and a browser/Node frontend alike.
+The same language also reaches multiple host runtimes: a PHP extension (`bindings-php`) and TypeScript/WebAssembly bindings (`bindings-ts`) sit on top of the same core interpreter, so identical `nib` scripts and host-defined behavior can run in a PHP backend and a browser/Node frontend alike.
 
 ## Table of contents
 
-- [What's lame](#whats-lame)
+- [What's nib](#whats-nib)
 - [Syntax](#syntax)
   - [Comments](#comments)
   - [Literals](#literals)
@@ -130,103 +132,103 @@ a == b && c != d;    // && and || short-circuit
 No standard library/builtins by default (the host opts scripts into native functions via `register_func`, see above), no closures, no `.` member access. `++`/`--` (either prefix or postfix) only work as a whole statement, e.g. `x++;` or a `for` loop's clauses — not embeddable mid-expression like `1 + x++`.
 
 ### Workspace layout
-- `core/` — the language implementation (package `lame_core`): lexer, parser, interpreter.
-- `lame/` — a CLI that runs `.lame` scripts, or prints their parsed AST.
-- `bindings-php/` — a PHP extension (via `ext-php-rs`) exposing `lame` as a `Lame` class.
-- `bindings-ts/` — TypeScript/WebAssembly bindings (via `wasm-bindgen`), published as the `@sntworx/lame` npm package.
+- `core/` — the language implementation (package `nib_core`): lexer, parser, interpreter.
+- `nib/` — a CLI that runs `.nib` scripts, or prints their parsed AST.
+- `bindings-php/` — a PHP extension (via `ext-php-rs`) exposing `nib` as a `Nib` class.
+- `bindings-ts/` — TypeScript/WebAssembly bindings (via `wasm-bindgen`), published as the `@sntworx/nib` npm package.
 
 ## PHP
 
 ### Installation
 
-1. Download the extension build for your platform from the [Releases page](https://github.com/zlysanta/lame/releases).
+1. Download the extension build for your platform from the [Releases page](https://github.com/sntworx/nib/releases).
 2. Copy it into your PHP install's `extension_dir` (find that path with `php -i | grep extension_dir`). **On macOS**, PHP looks for a `.so` file even though Rust produces a `.dylib` — rename it to end in `.so` after copying it over, or PHP won't find it.
 3. Enable it in `php.ini`:
    ```ini
-   extension=php_lame.so
+   extension=php_nib.so
    ```
-4. Confirm it loaded: `php -m | grep -i lame`.
+4. Confirm it loaded: `php -m | grep -i nib`.
 
 ### Usage
 
 ```php
 <?php
 
-$lame = new Lame();
+$nib = new Nib();
 
-$lame->registerFunc("print", function (...$args) {
+$nib->registerFunc("print", function (...$args) {
     echo implode(" ", $args), "\n";
 });
 
-$lame->disableKeywords(["while"]); // optional: restrict the language surface
+$nib->disableKeywords(["while"]); // optional: restrict the language surface
 
-$lame->parse('
+$nib->parse('
     var x = 1 + 2;
     print("x =", x);
 ');
 
-$lame->run();
+$nib->run();
 ```
 
 `parse()` and `run()` throw on error (a bad script raises a PHP exception rather than returning an error code), so wrap them in `try`/`catch` when running untrusted scripts:
 
 ```php
 try {
-    $lame->parse($untrustedScript);
-    $lame->run();
+    $nib->parse($untrustedScript);
+    $nib->run();
 } catch (\Throwable $e) {
     // ...
 }
 ```
 
-Callbacks passed to `registerFunc` accept any PHP callable (closure, named function, `[$obj, "method"]`, etc.) and are arity-checked via reflection, so calling one with the wrong number of arguments from a `lame` script fails with a clear error instead of a PHP-level warning.
+Callbacks passed to `registerFunc` accept any PHP callable (closure, named function, `[$obj, "method"]`, etc.) and are arity-checked via reflection, so calling one with the wrong number of arguments from a `nib` script fails with a clear error instead of a PHP-level warning.
 
 ## JS/TS
 
 ### Installation
 
 ```sh
-npm install @sntworx/lame
+npm install @sntworx/nib
 ```
 
-Works out of the box in Node (CommonJS `require` or ESM `import`) and via bundlers (webpack/vite/rollup). For direct browser use with no bundler, import the `@sntworx/lame/web` subpath instead — see below.
+Works out of the box in Node (CommonJS `require` or ESM `import`) and via bundlers (webpack/vite/rollup). For direct browser use with no bundler, import the `@sntworx/nib/web` subpath instead — see below.
 
 ### Usage
 
 Node or a bundler (auto-initializes, no manual setup step):
 
 ```js
-import { Lame } from "@sntworx/lame";
-// or: const { Lame } = require("@sntworx/lame");
+import { Nib } from "@sntworx/nib";
+// or: const { Nib } = require("@sntworx/nib");
 
-const lame = new Lame();
+const nib = new Nib();
 
-lame.registerFunc("print", (...args) => {
+nib.registerFunc("print", (...args) => {
     console.log(...args);
 });
 
-lame.disableKeywords(["while"]); // optional: restrict the language surface
+nib.disableKeywords(["while"]); // optional: restrict the language surface
 
-lame.parse(`
+nib.parse(`
     var x = 1 + 2;
     print("x =", x);
 `);
 
-lame.run();
+nib.run();
 ```
 
 Direct browser, no bundler — needs an explicit async init first:
 
 ```html
 <script type="module">
-    import init, { Lame } from "@sntworx/lame/web";
+    import init, { Nib } from "@sntworx/nib/web";
 
     await init(); // fetches and instantiates the .wasm
 
-    const lame = new Lame();
-    lame.registerFunc("print", (...args) => console.log(...args));
-    lame.parse('print("hello from the browser");');
-    lame.run();
+    const nib = new Nib();
+    nib.registerFunc("print", (...args) => console.log(...args));
+    nib.parse('print("hello from the browser");');
+    nib.run();
 </script>
 ```
 
@@ -234,14 +236,14 @@ Direct browser, no bundler — needs an explicit async init first:
 
 ```js
 try {
-    lame.parse(untrustedScript);
-    lame.run();
+    nib.parse(untrustedScript);
+    nib.run();
 } catch (e) {
     // ...
 }
 ```
 
-Callbacks passed to `registerFunc` are plain JS functions and, unlike the PHP binding, aren't arity-checked — JS itself doesn't error on a mismatched argument count, so `lame` just calls through and lets normal JS semantics apply (missing arguments become `undefined`, extra ones are ignored).
+Callbacks passed to `registerFunc` are plain JS functions and, unlike the PHP binding, aren't arity-checked — JS itself doesn't error on a mismatched argument count, so `nib` just calls through and lets normal JS semantics apply (missing arguments become `undefined`, extra ones are ignored).
 
 ## License
 

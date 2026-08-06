@@ -3,39 +3,39 @@ use ext_php_rs::error::Error as PhpRsError;
 use ext_php_rs::prelude::*;
 use ext_php_rs::types::{ZendCallable, ZendObject, Zval};
 use ext_php_rs::zend::ClassEntry;
-use lame_core::{Lame as LameCore, Value};
+use nib_core::{Nib as NibCore, Value};
 
 #[php_class]
-pub struct Lame {
-    lame: LameCore,
+pub struct Nib {
+    nib: NibCore,
 }
 
 #[php_impl]
-impl Lame {
+impl Nib {
     pub fn __construct() -> Self {
-        Lame {
-            lame: LameCore::new(),
+        Nib {
+            nib: NibCore::new(),
         }
     }
 
     pub fn parse(&mut self, source: String) -> PhpResult<()> {
-        self.lame.parse(&source).map_err(|e| e.to_string())?;
+        self.nib.parse(&source).map_err(|e| e.to_string())?;
         Ok(())
     }
 
     pub fn run(&mut self) -> PhpResult<()> {
-        self.lame.run().map_err(|e| e.to_string())?;
+        self.nib.run().map_err(|e| e.to_string())?;
         Ok(())
     }
 
     pub fn disable_keywords(&mut self, keywords: Vec<String>) {
-        self.lame
+        self.nib
             .disable_keywords(keywords.iter().map(|k| k.as_str()).collect());
     }
 
     pub fn register_func(&mut self, name: String, callback: &Zval) -> PhpResult<()> {
-        // Reflect the callback once, up front, so calls from lame scripts with
-        // the wrong arity are rejected the same way lame_core already rejects
+        // Reflect the callback once, up front, so calls from nib scripts with
+        // the wrong arity are rejected the same way nib_core already rejects
         // wrong-arity calls to its own user-defined functions.
         let arity = reflect_arity(callback).map_err(|e| e.to_string())?;
 
@@ -44,7 +44,7 @@ impl Lame {
             ZendCallable::new_owned(callback.shallow_clone()).map_err(|e| e.to_string())?;
 
         let display_name = name.clone();
-        self.lame
+        self.nib
             .register_func(name, move |args: &[Value]| -> Result<Value, String> {
                 if !arity.accepts(args.len()) {
                     return Err(format!(
@@ -202,5 +202,5 @@ fn zval_to_value(zval: &Zval) -> Result<Value, String> {
 
 #[php_module]
 pub fn module(module: ModuleBuilder) -> ModuleBuilder {
-    module.name("lame").class::<Lame>()
+    module.name("nib").class::<Nib>()
 }

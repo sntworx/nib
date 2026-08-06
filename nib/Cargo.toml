@@ -1,9 +1,9 @@
 [package]
-name = "lame"
+name = "nib"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
 
 [dependencies]
 clap = { version = "4.6.5", features = ["derive"] }
-lame_core = { path = "../core" }
+nib_core = { path = "../core" }

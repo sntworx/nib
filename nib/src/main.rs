@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::Parser;
-use lame_core::{Lame, Value};
+use nib_core::{Nib, Value};
 
 #[derive(Parser)]
 struct Cli {
@@ -26,9 +26,9 @@ fn main() -> ExitCode {
         }
     };
 
-    let mut lame = Lame::new();
+    let mut nib = Nib::new();
 
-    lame.register_func("print", |args: &[Value]| {
+    nib.register_func("print", |args: &[Value]| {
         let rendered = args
             .iter()
             .map(|v| v.to_string())
@@ -38,26 +38,26 @@ fn main() -> ExitCode {
         Ok(Value::Null)
     });
 
-    if let Err(e) = lame.parse(&source) {
+    if let Err(e) = nib.parse(&source) {
         eprintln!("{}", e);
         return ExitCode::FAILURE;
     }
 
     match cli.ast {
         None => {
-            if let Err(e) = lame.run() {
+            if let Err(e) = nib.run() {
                 eprintln!("{}", e);
                 return ExitCode::FAILURE;
             }
         }
         Some(path) if path == PathBuf::from("-") => {
-            let ast = lame
+            let ast = nib
                 .ast()
                 .expect("ast is always set after a successful parse");
             println!("{:#?}", ast);
         }
         Some(path) => {
-            let ast = lame
+            let ast = nib
                 .ast()
                 .expect("ast is always set after a successful parse");
             let contents = format!("{:#?}", ast);

@@ -5,9 +5,9 @@ edition = "2024"
 license.workspace = true
 
 [lib]
-name = "php_lame"
+name = "php_nib"
 crate-type = ["cdylib"]
 
 [dependencies]
 ext-php-rs = "0.15.15"
-lame_core = { path = "../core" }
+nib_core = { path = "../core" }

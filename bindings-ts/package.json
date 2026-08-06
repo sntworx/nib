@@ -1,21 +1,21 @@
 {
-  "name": "@sntworx/lame",
+  "name": "@sntworx/nib",
   "version": "0.1.0",
-  "description": "TypeScript/WebAssembly bindings for the lame scripting language",
+  "description": "TypeScript/WebAssembly bindings for the nib scripting language",
   "license": "MIT OR Apache-2.0",
   "type": "module",
-  "main": "./pkg/node/lame_ts.js",
-  "module": "./pkg/bundler/lame_ts.js",
-  "types": "./pkg/bundler/lame_ts.d.ts",
+  "main": "./pkg/node/nib_ts.js",
+  "module": "./pkg/bundler/nib_ts.js",
+  "types": "./pkg/bundler/nib_ts.d.ts",
   "exports": {
     ".": {
-      "types": "./pkg/bundler/lame_ts.d.ts",
-      "node": "./pkg/node/lame_ts.js",
-      "default": "./pkg/bundler/lame_ts.js"
+      "types": "./pkg/bundler/nib_ts.d.ts",
+      "node": "./pkg/node/nib_ts.js",
+      "default": "./pkg/bundler/nib_ts.js"
     },
     "./web": {
-      "types": "./pkg/web/lame_ts.d.ts",
-      "default": "./pkg/web/lame_ts.js"
+      "types": "./pkg/web/nib_ts.d.ts",
+      "default": "./pkg/web/nib_ts.js"
     }
   },
   "files": [
@@ -24,7 +24,7 @@
     "pkg/web"
   ],
   "sideEffects": [
-    "./pkg/bundler/lame_ts.js",
+    "./pkg/bundler/nib_ts.js",
     "./pkg/bundler/snippets/*",
     "./pkg/web/snippets/*"
   ]

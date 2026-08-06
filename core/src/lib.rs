@@ -10,15 +10,15 @@ use types::Error;
 
 pub use runtime::Value;
 
-pub struct Lame {
+pub struct Nib {
     ast: Option<Ast>,
     interpreter: Interpreter,
     disabled_keywords: Vec<String>,
 }
 
-impl Lame {
+impl Nib {
     pub fn new() -> Self {
-        Lame {
+        Nib {
             ast: None,
             interpreter: Interpreter::new(),
             disabled_keywords: vec![],

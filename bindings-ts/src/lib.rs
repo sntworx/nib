@@ -1,37 +1,37 @@
 use js_sys::{Array, Function};
-use lame_core::{Lame as LameCore, Value};
+use nib_core::{Nib as NibCore, Value};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-pub struct Lame {
-    lame: LameCore,
+pub struct Nib {
+    nib: NibCore,
 }
 
 #[wasm_bindgen]
-impl Lame {
+impl Nib {
     #[wasm_bindgen(constructor)]
-    pub fn new() -> Lame {
-        Lame {
-            lame: LameCore::new(),
+    pub fn new() -> Nib {
+        Nib {
+            nib: NibCore::new(),
         }
     }
 
     pub fn parse(&mut self, source: String) -> Result<(), JsValue> {
-        self.lame
+        self.nib
             .parse(&source)
             .map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
     pub fn run(&mut self) -> Result<(), JsValue> {
-        self.lame
+        self.nib
             .run()
             .map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
     #[wasm_bindgen(js_name = registerFunc)]
     pub fn register_func(&mut self, name: String, callback: Function) {
-        self.lame
+        self.nib
             .register_func(name, move |args: &[Value]| -> Result<Value, String> {
                 let js_args = Array::new();
                 for arg in args {
@@ -47,7 +47,7 @@ impl Lame {
 
     #[wasm_bindgen(js_name = disableKeywords)]
     pub fn disable_keywords(&mut self, keywords: Vec<String>) {
-        self.lame
+        self.nib
             .disable_keywords(keywords.iter().map(|k| k.as_str()).collect());
     }
 }
@@ -85,7 +85,7 @@ fn js_to_value(js: &JsValue) -> Result<Value, String> {
     } else if let Some(b) = js.as_bool() {
         Ok(Value::Bool(b))
     } else if let Some(n) = js.as_f64() {
-        // JS only has one number type, unlike lame's Int/Float split - treat
+        // JS only has one number type, unlike nib's Int/Float split - treat
         // whole numbers in i64 range as Int, everything else as Float.
         if n.fract() == 0.0 && n >= i64::MIN as f64 && n <= i64::MAX as f64 {
             Ok(Value::Int(n as i64))

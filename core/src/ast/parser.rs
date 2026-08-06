@@ -306,7 +306,7 @@ impl Parser {
 
     fn assignment(&mut self) -> Result<Expr, ParseError> {
         // `++x`/`--x` desugar exactly like their postfix counterparts below
-        // (`x = x + 1`/`x = x - 1`) - lame has no old-vs-new-value distinction
+        // (`x = x + 1`/`x = x - 1`) - nib has no old-vs-new-value distinction
         // between pre/post since increment is statement-only either way,
         // never embeddable mid-expression (same restriction postfix and
         // compound assignment already have). Checked before `self.or()` so

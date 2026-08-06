@@ -42,7 +42,7 @@ impl Interpreter {
     }
 
     // Binds a Rust function into the global scope under `name`, callable from
-    // Lame scripts like any other function. It's just another Value, so it
+    // Nib scripts like any other function. It's just another Value, so it
     // composes with the rest of the interpreter for free (can be passed
     // around, shadowed, etc.) - the only new code is dispatching to it in
     // `eval_call` below.
