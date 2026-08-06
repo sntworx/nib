@@ -125,7 +125,9 @@ impl Interpreter {
                 Value::Bool(true) => {}
                 Value::Bool(false) => return Ok(Flow::Normal),
                 other => {
-                    return Err(self.error(format!("while condition must be a bool, got {}", other)));
+                    return Err(
+                        self.error(format!("while condition must be a bool, got {}", other))
+                    );
                 }
             }
             match self.exec_block(&while_stmt.body)? {

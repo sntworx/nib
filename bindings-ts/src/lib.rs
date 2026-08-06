@@ -1,7 +1,7 @@
 use js_sys::{Array, Function};
 use lame_core::{Lame, Value};
-use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub struct LameTs {
@@ -22,7 +22,9 @@ impl LameTs {
     }
 
     pub fn run(&mut self) -> Result<(), JsValue> {
-        self.lame.run().map_err(|e| JsValue::from_str(&e.to_string()))
+        self.lame
+            .run()
+            .map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
     #[wasm_bindgen(js_name = registerFunc)]

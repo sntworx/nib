@@ -1,4 +1,5 @@
 use ext_php_rs::convert::{IntoZval, IntoZvalDyn};
+use ext_php_rs::error::Error as PhpRsError;
 use ext_php_rs::prelude::*;
 use ext_php_rs::types::{ZendCallable, ZendObject, Zval};
 use ext_php_rs::zend::ClassEntry;
@@ -59,7 +60,7 @@ impl LamePhp {
                 let params: Vec<&dyn IntoZvalDyn> =
                     zvals.iter().map(|z| z as &dyn IntoZvalDyn).collect();
 
-                let result = callable.try_call(params).map_err(|e| e.to_string())?;
+                let result = callable.try_call(params).map_err(describe_call_error)?;
                 zval_to_value(&result)
             });
 
@@ -136,6 +137,24 @@ fn reflect_arity(callback: &Zval) -> Result<Arity, String> {
     };
 
     Ok(Arity { min, max })
+}
+
+/// `ZendCallable::try_call`'s `Error::Exception` variant carries the raw
+/// thrown object; its `Display` dumps the whole thing Zval-by-Zval (message,
+/// trace, file, line, ...), which is both unreadable and has been observed to
+/// embed a NUL byte that then fails a *second*, unrelated conversion when
+/// ext-php-rs turns our returned `String` into a thrown PHP exception -
+/// surfacing as a "contains NUL-bytes" error that buries the real one. Pull
+/// out just `getMessage()` instead, which is what a caller actually wants.
+fn describe_call_error(err: PhpRsError) -> String {
+    match err {
+        PhpRsError::Exception(exception) => exception
+            .try_call_method("getMessage", vec![])
+            .ok()
+            .and_then(|message| message.string())
+            .unwrap_or_else(|| "PHP callback threw an exception".to_string()),
+        other => other.to_string(),
+    }
 }
 
 fn value_to_zval(value: &Value) -> Result<Zval, String> {
