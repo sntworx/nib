@@ -3,6 +3,8 @@
 
 # Build files
 /target
+/bindings-ts/pkg
+*.tgz
 
 # Dev files
 *.lame

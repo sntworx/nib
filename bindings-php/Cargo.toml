@@ -1,9 +1,10 @@
 [package]
-name = "php-bindings"
+name = "bindings-php"
 version = "0.1.0"
 edition = "2024"
 
 [lib]
+name = "php_lame"
 crate-type = ["cdylib"]
 
 [dependencies]

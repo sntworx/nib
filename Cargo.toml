@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
   "core",
-  "standalone",
-  "php-bindings"
+  "lame",
+  "bindings-php",
+  "bindings-ts"
 ]

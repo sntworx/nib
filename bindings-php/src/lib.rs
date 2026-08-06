@@ -25,6 +25,11 @@ impl LamePhp {
         Ok(())
     }
 
+    pub fn disable_keywords(&mut self, keywords: Vec<String>) {
+        self.lame
+            .disable_keywords(keywords.iter().map(|k| k.as_str()).collect());
+    }
+
     pub fn register_func(&mut self, name: String, callback: &Zval) -> PhpResult<()> {
         // Reflect the callback once, up front, so calls from lame scripts with
         // the wrong arity are rejected the same way lame_core already rejects

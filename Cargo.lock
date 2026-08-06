@@ -97,6 +97,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
 
 [[package]]
+name = "bindings-php"
+version = "0.1.0"
+dependencies = [
+ "ext-php-rs",
+ "lame_core",
+]
+
+[[package]]
+name = "bindings-ts"
+version = "0.1.0"
+dependencies = [
+ "js-sys",
+ "lame_core",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "bitflags"
 version = "2.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -718,6 +735,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "lame"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "lame_core",
+]
+
+[[package]]
 name = "lame_core"
 version = "0.1.0"
 dependencies = [
@@ -933,14 +958,6 @@ name = "percent-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
-
-[[package]]
-name = "php-bindings"
-version = "0.1.0"
-dependencies = [
- "ext-php-rs",
- "lame_core",
-]
 
 [[package]]
 name = "pin-project-lite"
@@ -1249,14 +1266,6 @@ name = "smallvec"
 version = "1.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ed6a63f02c8539c91a8685a86f4099661ba3da017932f6ebbea6de3f0fa7c90"
-
-[[package]]
-name = "standalone"
-version = "0.1.0"
-dependencies = [
- "clap",
- "lame_core",
-]
 
 [[package]]
 name = "strsim"

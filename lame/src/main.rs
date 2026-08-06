@@ -38,8 +38,6 @@ fn main() -> ExitCode {
         Ok(Value::Null)
     });
 
-    lame.disable_keywords(vec!["if"]);
-
     if let Err(e) = lame.parse(&source) {
         eprintln!("{}", e);
         return ExitCode::FAILURE;

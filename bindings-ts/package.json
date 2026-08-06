@@ -1,0 +1,30 @@
+{
+  "name": "@sntworx/lame",
+  "version": "0.1.0",
+  "description": "TypeScript/WebAssembly bindings for the lame scripting language",
+  "type": "module",
+  "main": "./pkg/node/lame_ts.js",
+  "module": "./pkg/bundler/lame_ts.js",
+  "types": "./pkg/bundler/lame_ts.d.ts",
+  "exports": {
+    ".": {
+      "types": "./pkg/bundler/lame_ts.d.ts",
+      "node": "./pkg/node/lame_ts.js",
+      "default": "./pkg/bundler/lame_ts.js"
+    },
+    "./web": {
+      "types": "./pkg/web/lame_ts.d.ts",
+      "default": "./pkg/web/lame_ts.js"
+    }
+  },
+  "files": [
+    "pkg/node",
+    "pkg/bundler",
+    "pkg/web"
+  ],
+  "sideEffects": [
+    "./pkg/bundler/lame_ts.js",
+    "./pkg/bundler/snippets/*",
+    "./pkg/web/snippets/*"
+  ]
+}

@@ -1,17 +1,32 @@
 lame *args:
-  cargo run -p standalone -- {{args}}
+  cargo run -p lame -- {{args}}
 
-build-php-bindings:
-  cargo build -p php-bindings --release
+build-bindings-php:
+  cargo build -p bindings-php --release
 
 install-php-extension:
-  cd php-bindings && cargo php install --release --yes
+  cd bindings-php && cargo php install --release --yes
 
 remove-php-extension:
-  cd php-bindings && cargo php remove --yes
+  cd bindings-php && cargo php remove --yes
 
 update-php-extension:
-  cd php-bindings && cargo php remove --yes && cargo php install --release --yes
+  cd bindings-php && cargo php remove --yes && cargo php install --release --yes
+
+build-bindings-ts-web:
+  cd bindings-ts && wasm-pack build --release --target web --out-dir pkg/web
+
+build-bindings-ts-bundler:
+  cd bindings-ts && wasm-pack build --release --target bundler --out-dir pkg/bundler
+
+build-bindings-ts-node:
+  cd bindings-ts && wasm-pack build --release --target nodejs --out-dir pkg/node
+
+build-bindings-ts: build-bindings-ts-web build-bindings-ts-bundler build-bindings-ts-node
+  rm -f bindings-ts/pkg/*/.gitignore
+
+pack-bindings-ts: build-bindings-ts
+  cd bindings-ts && npm pack
 
 cargo-fmt:
     cargo +nightly fmt
