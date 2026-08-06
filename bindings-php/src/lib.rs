@@ -181,5 +181,5 @@ fn zval_to_value(zval: &Zval) -> Result<Value, String> {
 
 #[php_module]
 pub fn module(module: ModuleBuilder) -> ModuleBuilder {
-    module.class::<LamePhp>()
+    module.name("lame").class::<LamePhp>()
 }
