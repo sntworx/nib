@@ -836,9 +836,6 @@ dependencies = [
 [[package]]
 name = "nib_core"
 version = "0.1.0"
-dependencies = [
- "regex",
-]
 
 [[package]]
 name = "nom"

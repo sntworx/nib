@@ -21,6 +21,7 @@ pub enum BinaryOp {
     Sub, // -
     Mul, // *
     Div, // /
+    Mod, // %
 
     Eq,    // ==
     NotEq, // !=
@@ -104,6 +105,19 @@ pub struct ForStmt {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct MatchArm {
+    pub pattern: Expr,
+    pub body: Vec<AstNode>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MatchStmt {
+    pub subject: Expr,
+    pub arms: Vec<MatchArm>,
+    pub else_branch: Option<Vec<AstNode>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum AstNodeKind {
     VarAssign(VarAssign),
     ExprStmt(Expr),
@@ -113,6 +127,7 @@ pub enum AstNodeKind {
     Return(Option<Expr>),
     While(WhileStmt),
     For(ForStmt),
+    Match(MatchStmt),
     Break,
     Continue,
 }

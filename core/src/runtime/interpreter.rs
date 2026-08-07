@@ -2,8 +2,8 @@ use std::rc::Rc;
 
 use crate::ast::Ast;
 use crate::ast::types::{
-    AstNode, AstNodeKind, BinaryOp, Expr, ForStmt, FuncDecl, IfStmt, Literal, UnaryOp, VarAssign,
-    WhileStmt,
+    AstNode, AstNodeKind, BinaryOp, Expr, ForStmt, FuncDecl, IfStmt, Literal, MatchStmt, UnaryOp,
+    VarAssign, WhileStmt,
 };
 use crate::runtime::environment::Environment;
 use crate::runtime::helpers::{as_f64, checked_float, values_equal};
@@ -103,6 +103,7 @@ impl Interpreter {
             }
             AstNodeKind::While(while_stmt) => self.exec_while(while_stmt),
             AstNodeKind::For(for_stmt) => self.exec_for(for_stmt),
+            AstNodeKind::Match(match_stmt) => self.exec_match(match_stmt),
             AstNodeKind::Break => Ok(Flow::Break),
             AstNodeKind::Continue => Ok(Flow::Continue),
         }
@@ -116,6 +117,23 @@ impl Interpreter {
                 None => Ok(Flow::Normal),
             },
             other => Err(self.error(format!("if condition must be a bool, got {}", other))),
+        }
+    }
+
+    // Arms are tested top-to-bottom using the same equality semantics as
+    // `==`/`!=` (`values_equal` - numeric Int/Float coercion, no cross-type
+    // coercion otherwise). First match wins, no fallthrough between arms.
+    fn exec_match(&mut self, match_stmt: &MatchStmt) -> Result<Flow, RuntimeError> {
+        let subject = self.eval(&match_stmt.subject)?;
+        for arm in &match_stmt.arms {
+            let pattern = self.eval(&arm.pattern)?;
+            if values_equal(&subject, &pattern) {
+                return self.exec_block(&arm.body);
+            }
+        }
+        match &match_stmt.else_branch {
+            Some(else_branch) => self.exec_block(else_branch),
+            None => Ok(Flow::Normal),
         }
     }
 
@@ -317,6 +335,15 @@ impl Interpreter {
                         .ok_or_else(|| self.error("integer overflow".to_string()))
                 }
             }
+            (Mod, Value::Int(a), Value::Int(b)) => {
+                if b == 0 {
+                    Err(self.error("modulo by zero".to_string()))
+                } else {
+                    a.checked_rem(b)
+                        .map(Value::Int)
+                        .ok_or_else(|| self.error("integer overflow".to_string()))
+                }
+            }
             (Lt, Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a < b)),
             (LtEq, Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a <= b)),
             (Gt, Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a > b)),
@@ -335,6 +362,8 @@ impl Interpreter {
                     Mul => checked_float(a * b),
                     Div if b == 0.0 => return Err(self.error("division by zero".to_string())),
                     Div => checked_float(a / b),
+                    Mod if b == 0.0 => return Err(self.error("modulo by zero".to_string())),
+                    Mod => checked_float(a % b),
                     Lt => return Ok(Value::Bool(a < b)),
                     LtEq => return Ok(Value::Bool(a <= b)),
                     Gt => return Ok(Value::Bool(a > b)),

@@ -60,7 +60,7 @@ var a = [1, 2, 3];
 ```
 var x = 1;
 x = 2;
-x += 3;   // also -= *= /=
+x += 3;   // also -= *= /= %=
 x++;      // also x-- and prefix ++x/--x
 ```
 
@@ -89,9 +89,25 @@ for (var i = 0; i < 10; i += 1) {
 }
 ```
 
-`if`/`while` conditions don't need parens; `for`'s three clauses do, and each of them is optional (`for (;;) { }` loops forever). `break`/`continue` are only valid inside a loop.
+```
+match x {
+    case 1 {
+        // ...
+    }
+    case 2 {
+        // ...
+    }
+    else {
+        // ...
+    }
+}
+```
 
-A bare `{ ... }` also works as its own statement — its own scope, not attached to any `if`/`while`/`for`/`func`.
+`if`/`while`/`match` conditions don't need parens; `for`'s three clauses do, and each of them is optional (`for (;;) { }` loops forever). `break`/`continue` are only valid inside a loop.
+
+Each `match` arm is `case` followed by a pattern expression (any expression, not just a literal) and its block; arms are tried top-to-bottom and the first whose pattern equals the subject (same equality as `==`) runs, with no fallthrough. `else` is optional and, if present, must be the last arm.
+
+A bare `{ ... }` also works as its own statement — its own scope, not attached to any `if`/`while`/`for`/`func`/`match`.
 
 #### Functions
 
@@ -123,6 +139,7 @@ Arrays are a value type: `var b = a; b[0] = 1;` does **not** change `a`, unlike 
 
 ```
 1 + 2 * 3;
+7 % 3;               // remainder, sign follows the dividend (like C/JS, not Python)
 (1 + 2) * 3;         // parens are just a grouping expression
 "count: " + 5;       // + also stringifies numbers for concatenation
 a == b && c != d;    // && and || short-circuit

@@ -3,6 +3,3 @@ name = "nib_core"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
-
-[dependencies]
-regex = "1.13.1"

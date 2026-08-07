@@ -223,6 +223,8 @@ impl Lexer {
             "for" => Some(TokenKind::For),
             "break" => Some(TokenKind::Break),
             "continue" => Some(TokenKind::Continue),
+            "match" => Some(TokenKind::Match),
+            "case" => Some(TokenKind::Case),
             _ => None,
         };
 
@@ -334,6 +336,14 @@ impl Lexer {
                     TokenKind::SlashEq
                 } else {
                     TokenKind::Slash
+                }
+            }
+            '%' => {
+                self.advance();
+                if self.matches('=') {
+                    TokenKind::PercentEq
+                } else {
+                    TokenKind::Percent
                 }
             }
             '=' => {

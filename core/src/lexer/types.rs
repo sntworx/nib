@@ -21,6 +21,8 @@ pub enum TokenKind {
     For,
     Break,
     Continue,
+    Match,
+    Case,
 
     // punctuation
     Semicolon, // ;
@@ -48,10 +50,12 @@ pub enum TokenKind {
     Minus,      // -
     Star,       // *
     Slash,      // /
+    Percent,    // %
     PlusEq,     // +=
     MinusEq,    // -=
     StarEq,     // *=
     SlashEq,    // /=
+    PercentEq,  // %=
     PlusPlus,   // ++
     MinusMinus, // --
 
@@ -78,6 +82,8 @@ impl fmt::Display for TokenKind {
             TokenKind::For => write!(f, "'for'"),
             TokenKind::Break => write!(f, "'break'"),
             TokenKind::Continue => write!(f, "'continue'"),
+            TokenKind::Match => write!(f, "'match'"),
+            TokenKind::Case => write!(f, "'case'"),
 
             TokenKind::Semicolon => write!(f, "';'"),
             TokenKind::LParen => write!(f, "'('"),
@@ -103,10 +109,12 @@ impl fmt::Display for TokenKind {
             TokenKind::Minus => write!(f, "'-'"),
             TokenKind::Star => write!(f, "'*'"),
             TokenKind::Slash => write!(f, "'/'"),
+            TokenKind::Percent => write!(f, "'%'"),
             TokenKind::PlusEq => write!(f, "'+='"),
             TokenKind::MinusEq => write!(f, "'-='"),
             TokenKind::StarEq => write!(f, "'*='"),
             TokenKind::SlashEq => write!(f, "'/='"),
+            TokenKind::PercentEq => write!(f, "'%='"),
             TokenKind::PlusPlus => write!(f, "'++'"),
             TokenKind::MinusMinus => write!(f, "'--'"),
 

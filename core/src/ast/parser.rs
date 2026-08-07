@@ -1,15 +1,34 @@
 use crate::ast::Ast;
 use crate::ast::types::{
-    AstNode, AstNodeKind, BinaryOp, Expr, ForStmt, FuncDecl, IfStmt, Literal, ParseError, UnaryOp,
-    VarAssign, WhileStmt,
+    AstNode, AstNodeKind, BinaryOp, Expr, ForStmt, FuncDecl, IfStmt, Literal, MatchArm, MatchStmt,
+    ParseError, UnaryOp, VarAssign, WhileStmt,
 };
 use crate::lexer::{Token, TokenKind};
+
+// Caps recursive-descent nesting (parens, unary chains, nested blocks, ...)
+// so malformed or malicious input can't overflow the real Rust stack while
+// parsing - same purpose as `Interpreter::MAX_CALL_DEPTH`, but for parse-time
+// grammar nesting rather than runtime function-call depth.
+//
+// Deliberately much lower than `MAX_CALL_DEPTH`: a single level of grammar
+// nesting burns several real stack frames here (e.g. one `(` walks through
+// `expression` -> `assignment` -> ... -> `unary` -> `postfix` -> `primary`
+// before recursing), not one frame per level like a function call. It's also
+// tuned against a worse stack budget than the CLI's own thread gets - `nib`
+// is meant to be embedded, and a host thread (or `cargo test`'s worker
+// threads, which is how this was actually caught) can have a far smaller
+// stack than the ~8MiB a process's main thread gets by default. 128 was
+// verified safe with margin even in a debug build on a constrained 1MiB
+// stack; 1000 was not, even in release, below 2MiB. Don't raise this without
+// re-verifying against a small-stack thread, not just the CLI.
+const MAX_PARSE_DEPTH: usize = 128;
 
 pub struct Parser {
     tokens: Vec<Token>,
     pos: usize,
     at_top_level: bool,
     in_loop: bool,
+    depth: usize,
 }
 
 impl Parser {
@@ -19,6 +38,7 @@ impl Parser {
             pos: 0,
             at_top_level: true,
             in_loop: false,
+            depth: 0,
         }
     }
 
@@ -88,6 +108,18 @@ impl Parser {
         }
     }
 
+    // Call at the top of every function that's part of a recursive-descent
+    // cycle (i.e. can call itself, directly or indirectly, without consuming
+    // input that shrinks the remaining recursion) - callers are responsible
+    // for decrementing `depth` back down once their recursive work returns.
+    fn enter_nesting(&mut self) -> Result<(), ParseError> {
+        self.depth += 1;
+        if self.depth > MAX_PARSE_DEPTH {
+            return Err(self.error("expression or block nested too deeply"));
+        }
+        Ok(())
+    }
+
     // --- statements ---
 
     fn statement(&mut self) -> Result<AstNode, ParseError> {
@@ -108,6 +140,8 @@ impl Parser {
             AstNodeKind::While(self.while_stmt()?)
         } else if self.check(&TokenKind::For) {
             AstNodeKind::For(self.for_stmt()?)
+        } else if self.check(&TokenKind::Match) {
+            AstNodeKind::Match(self.match_stmt()?)
         } else if self.check(&TokenKind::Break) {
             self.break_stmt()?;
             AstNodeKind::Break
@@ -191,7 +225,10 @@ impl Parser {
             if self.check(&TokenKind::If) {
                 let line = self.peek().line;
                 let col = self.peek().col;
-                let nested = self.if_stmt()?;
+                self.enter_nesting()?;
+                let nested = self.if_stmt();
+                self.depth -= 1;
+                let nested = nested?;
                 Some(vec![AstNode {
                     kind: AstNodeKind::If(nested),
                     line,
@@ -271,13 +308,48 @@ impl Parser {
         })
     }
 
+    fn match_stmt(&mut self) -> Result<MatchStmt, ParseError> {
+        self.expect(&TokenKind::Match, "")?;
+        // subject is a bare expression, same style as if/while
+        let subject = self.expression()?;
+        self.expect(&TokenKind::LBrace, "to start match body")?;
+
+        let mut arms = Vec::new();
+        let mut else_branch = None;
+        while !self.check(&TokenKind::RBrace) && !self.is_at_end() {
+            if self.match_kind(&TokenKind::Else) {
+                if else_branch.is_some() {
+                    return Err(self.error("match can only have one 'else' arm"));
+                }
+                else_branch = Some(self.block()?);
+            } else {
+                if else_branch.is_some() {
+                    return Err(self.error("'else' must be the last arm in match"));
+                }
+                self.expect(&TokenKind::Case, "before match arm pattern")?;
+                let pattern = self.expression()?;
+                let body = self.block()?;
+                arms.push(MatchArm { pattern, body });
+            }
+        }
+        self.expect(&TokenKind::RBrace, "to close match body")?;
+
+        Ok(MatchStmt {
+            subject,
+            arms,
+            else_branch,
+        })
+    }
+
     fn block(&mut self) -> Result<Vec<AstNode>, ParseError> {
         self.expect(&TokenKind::LBrace, "to start block")?;
+        self.enter_nesting()?;
 
         let saved_at_top_level = self.at_top_level;
         self.at_top_level = false;
         let nodes = self.block_statements();
         self.at_top_level = saved_at_top_level;
+        self.depth -= 1;
         let nodes = nodes?;
 
         self.expect(&TokenKind::RBrace, "to close block")?;
@@ -301,7 +373,10 @@ impl Parser {
     // --- expressions (precedence climbing, lowest to highest) ---
 
     fn expression(&mut self) -> Result<Expr, ParseError> {
-        self.assignment()
+        self.enter_nesting()?;
+        let result = self.assignment();
+        self.depth -= 1;
+        result
     }
 
     fn assignment(&mut self) -> Result<Expr, ParseError> {
@@ -345,13 +420,17 @@ impl Parser {
             Some(BinaryOp::Mul)
         } else if self.match_kind(&TokenKind::SlashEq) {
             Some(BinaryOp::Div)
+        } else if self.match_kind(&TokenKind::PercentEq) {
+            Some(BinaryOp::Mod)
         } else if self.match_kind(&TokenKind::Assign) {
             None
         } else {
             return Ok(expr);
         };
 
-        let value = self.assignment()?; // right-associative
+        // goes through `expression()` (not a direct `self.assignment()` call)
+        // purely so chained assignment gets covered by its depth guard too
+        let value = self.expression()?; // right-associative
         match expr {
             Expr::Ident(name) => {
                 let value = match compound_op {
@@ -498,6 +577,8 @@ impl Parser {
                 BinaryOp::Mul
             } else if self.match_kind(&TokenKind::Slash) {
                 BinaryOp::Div
+            } else if self.match_kind(&TokenKind::Percent) {
+                BinaryOp::Mod
             } else {
                 break;
             };
@@ -512,21 +593,22 @@ impl Parser {
     }
 
     fn unary(&mut self) -> Result<Expr, ParseError> {
-        if self.match_kind(&TokenKind::Not) {
-            let expr = self.unary()?;
-            Ok(Expr::Unary {
+        self.enter_nesting()?;
+        let result = if self.match_kind(&TokenKind::Not) {
+            self.unary().map(|expr| Expr::Unary {
                 op: UnaryOp::Not,
                 expr: Box::new(expr),
             })
         } else if self.match_kind(&TokenKind::Minus) {
-            let expr = self.unary()?;
-            Ok(Expr::Unary {
+            self.unary().map(|expr| Expr::Unary {
                 op: UnaryOp::Neg,
                 expr: Box::new(expr),
             })
         } else {
             self.postfix()
-        }
+        };
+        self.depth -= 1;
+        result
     }
 
     fn postfix(&mut self) -> Result<Expr, ParseError> {
