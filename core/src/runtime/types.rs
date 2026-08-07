@@ -60,7 +60,11 @@ impl Value {
     // writes `self` back to the receiver (see `assign_to_target`). `value` is
     // what the expression evaluates to, not always `self`'s new state - e.g.
     // `pop` evaluates to the removed element, not the shrunk array.
-    pub(crate) fn call_method(&mut self, name: &str, args: &[Value]) -> Result<MethodResult, String> {
+    pub(crate) fn call_method(
+        &mut self,
+        name: &str,
+        args: &[Value],
+    ) -> Result<MethodResult, String> {
         match (self, name) {
             (Value::Array(items), "len") => {
                 if !args.is_empty() {
