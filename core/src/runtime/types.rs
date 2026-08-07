@@ -11,11 +11,9 @@ pub struct Function {
     pub body: Vec<AstNode>,
 }
 
-// A Rust function injected into Nib's global scope. Takes already-evaluated
-// arguments and returns a plain message on failure (rather than a
-// RuntimeError) since it has no access to the interpreter's source position -
-// same convention as the other places in runtime/ that can't build one
-// directly (see `Environment::assign`, `checked_float`).
+// Injected into Nib's global scope by the host. Returns a plain message on
+// failure, not a RuntimeError, since it has no access to the interpreter's
+// source position (see `Environment::assign`, `checked_float`).
 pub struct NativeFunction {
     pub name: String,
     pub func: Box<dyn Fn(&[Value]) -> Result<Value, String>>,
@@ -40,15 +38,9 @@ pub enum Value {
 }
 
 impl Value {
-    // Used in "wrong type" runtime error messages instead of the value's own
-    // Display - a script-controlled `Str`/`Array` can contain arbitrary raw
-    // bytes (there's no escaping in `Display`, since it's also what backs
-    // deliberate string output like `+`'s stringification and a host's
-    // `print`), and those error messages get written straight to the host's
-    // terminal/log with no sanitization anywhere in the pipeline. Reporting
-    // the type instead of the value avoids ever echoing attacker-controlled
-    // content (e.g. terminal escape sequences) through a diagnostic path the
-    // script didn't explicitly ask to print through.
+    // Used in "wrong type" error messages instead of the value's own Display,
+    // which is unescaped - avoids echoing script-controlled content (e.g.
+    // terminal escape sequences) through a diagnostic path.
     pub(crate) fn type_name(&self) -> &'static str {
         match self {
             Value::Int(_) => "int",
@@ -62,19 +54,12 @@ impl Value {
         }
     }
 
-    // Dispatch for `target.method(args)` - a small, closed, interpreter-known
-    // set of pseudo-methods on built-in types, not general member access or
-    // user-extensible dispatch (there's no way for a script or host to add
-    // to this). Returns a plain message on failure, same convention as
-    // `Environment::assign`/`checked_float`/native functions, since this has
-    // no access to the interpreter's source position either.
-    //
-    // Mutating methods mutate `self` in place and return `Mutating(value)`;
-    // the interpreter is responsible for writing `self`'s new state back to
-    // wherever the receiver expression came from (see `assign_to_target`).
-    // `value` is what the *expression* evaluates to, which isn't always
-    // `self`'s new state - `pop` mutates the array but evaluates to the
-    // removed element, not the shrunk array.
+    // Dispatch for `target.method(args)` - a small, closed set of
+    // pseudo-methods, not general/user-extensible member access. Mutating
+    // methods mutate `self` and return `Mutating(value)`; the interpreter
+    // writes `self` back to the receiver (see `assign_to_target`). `value` is
+    // what the expression evaluates to, not always `self`'s new state - e.g.
+    // `pop` evaluates to the removed element, not the shrunk array.
     pub(crate) fn call_method(&mut self, name: &str, args: &[Value]) -> Result<MethodResult, String> {
         match (self, name) {
             (Value::Array(items), "len") => {
@@ -103,16 +88,11 @@ impl Value {
                 if !args.is_empty() {
                     return Err(format!("'len' expects 0 arguments, got {}", args.len()));
                 }
-                // char count, not byte count - `String::len` is O(1) but
-                // wrong for anything with multi-byte characters, and
-                // silently-wrong length is worse than the O(n) cost here
+                // char count, not byte count - String::len is O(1) but wrong for multi-byte chars
                 Ok(MethodResult::Pure(Value::Int(s.chars().count() as i64)))
             }
-            // Bridges a string into an array of single-character strings,
-            // rather than teaching `eval_index`/`exec_for_in` a second
-            // `Value::Str` case each - `s.chars()[i]` and
-            // `for c in s.chars() { }` reuse all of Array's existing
-            // indexing/iteration machinery for free instead of duplicating it.
+            // Bridges to Array so indexing/iteration come for free instead of
+            // duplicating that machinery for Str.
             (Value::Str(s), "chars") => {
                 if !args.is_empty() {
                     return Err(format!("'chars' expects 0 arguments, got {}", args.len()));
@@ -138,12 +118,9 @@ impl Value {
                 }
                 Ok(MethodResult::Pure(Value::Str(s.trim().to_string())))
             }
-            // Float-only: an Int is already an integer, so there's nothing
-            // for these to do - falls through to the "no method" catch-all
-            // below, same as calling an Array method on a Str would.
-            // Returns Int (not a Float with a zeroed fraction) since the
-            // usual reason to want this conversion is to use the result as
-            // an array index, which requires a literal `Value::Int`.
+            // Float-only (an Int has nothing to convert). Returns Int, not a
+            // Float with a zeroed fraction, since the usual reason to want
+            // this is to use the result as an array index.
             (Value::Float(f), "floor") => {
                 if !args.is_empty() {
                     return Err(format!("'floor' expects 0 arguments, got {}", args.len()));

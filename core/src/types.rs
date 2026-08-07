@@ -9,14 +9,8 @@ pub enum Error {
     Lex(LexError),
     Parse(ParseError),
     Runtime(RuntimeError),
-    // Wraps any of the three above when it happened while lexing/parsing/
-    // running source passed to `Nib::include` rather than the main script -
-    // included sources are lexed/parsed independently and each start
-    // counting from line 1 relative to their own string (see `Nib::run`),
-    // so line:col alone can't tell a host which source an error came from
-    // when there's more than one candidate. No further identification than
-    // that (no per-include name/label) since `include` doesn't have or want
-    // a namespacing concept.
+    // An error from `Nib::include`d source rather than the main script -
+    // each include starts at line 1, so line:col alone can't tell them apart.
     Included(Box<Error>),
 }
 

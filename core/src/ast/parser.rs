@@ -5,22 +5,12 @@ use crate::ast::types::{
 };
 use crate::lexer::{Token, TokenKind};
 
-// Caps recursive-descent nesting (parens, unary chains, nested blocks, ...)
-// so malformed or malicious input can't overflow the real Rust stack while
-// parsing - same purpose as `Interpreter::MAX_CALL_DEPTH`, but for parse-time
-// grammar nesting rather than runtime function-call depth.
-//
-// Deliberately much lower than `MAX_CALL_DEPTH`: a single level of grammar
-// nesting burns several real stack frames here (e.g. one `(` walks through
-// `expression` -> `assignment` -> ... -> `unary` -> `postfix` -> `primary`
-// before recursing), not one frame per level like a function call. It's also
-// tuned against a worse stack budget than the CLI's own thread gets - `nib`
-// is meant to be embedded, and a host thread (or `cargo test`'s worker
-// threads, which is how this was actually caught) can have a far smaller
-// stack than the ~8MiB a process's main thread gets by default. 128 was
-// verified safe with margin even in a debug build on a constrained 1MiB
-// stack; 1000 was not, even in release, below 2MiB. Don't raise this without
-// re-verifying against a small-stack thread, not just the CLI.
+// Caps recursive-descent nesting so malformed/malicious input can't overflow
+// the real stack while parsing. Much lower than `Interpreter::MAX_CALL_DEPTH`
+// since one grammar level burns several real stack frames here, not one -
+// 128 is verified safe with margin on a constrained 1MiB stack (a small
+// worker-thread stack, not just the CLI's ~8MiB main thread); 1000 was not.
+// Don't raise without re-verifying against a small-stack thread.
 const MAX_PARSE_DEPTH: usize = 128;
 
 pub struct Parser {
@@ -108,10 +98,8 @@ impl Parser {
         }
     }
 
-    // Call at the top of every function that's part of a recursive-descent
-    // cycle (i.e. can call itself, directly or indirectly, without consuming
-    // input that shrinks the remaining recursion) - callers are responsible
-    // for decrementing `depth` back down once their recursive work returns.
+    // Call at the top of every recursive-descent cycle; caller decrements
+    // `depth` back down once its recursive work returns.
     fn enter_nesting(&mut self) -> Result<(), ParseError> {
         self.depth += 1;
         if self.depth > MAX_PARSE_DEPTH {
@@ -264,11 +252,8 @@ impl Parser {
         })
     }
 
-    // C-style `for (init; cond; post) { }` requires parens (they're the only
-    // thing delimiting the three clauses); `for x in arr { }` never has them,
-    // matching the bare-expression style `if`/`while`/`match` already use -
-    // so which form this is can be told apart with a single-token lookahead
-    // right after `for`, no backtracking needed.
+    // C-style `for` requires parens, `for x in arr` never has them, so a
+    // single-token lookahead after `for` tells the forms apart, no backtracking.
     fn for_stmt(&mut self) -> Result<AstNodeKind, ParseError> {
         self.expect(&TokenKind::For, "")?;
         if self.check(&TokenKind::LParen) {
@@ -411,13 +396,9 @@ impl Parser {
     }
 
     fn assignment(&mut self) -> Result<Expr, ParseError> {
-        // `++x`/`--x` desugar exactly like their postfix counterparts below
-        // (`x = x + 1`/`x = x - 1`) - nib has no old-vs-new-value distinction
-        // between pre/post since increment is statement-only either way,
-        // never embeddable mid-expression (same restriction postfix and
-        // compound assignment already have). Checked before `self.or()` so
-        // the target is parsed at postfix precedence, not swallowing a whole
-        // trailing expression like `++x + 1`.
+        // `++x`/`--x` desugar like their postfix counterparts below. Checked
+        // before `self.or()` so the target is parsed at postfix precedence,
+        // not swallowing a trailing expression like `++x + 1`.
         if self.match_kind(&TokenKind::PlusPlus) {
             let target = self.postfix()?;
             return self.incr_decr(target, BinaryOp::Add);
@@ -429,11 +410,8 @@ impl Parser {
 
         let expr = self.or()?;
 
-        // `x++`/`x--` desugar to `x = x + 1`/`x = x - 1`, same trick as
-        // compound assignment below. Since they take no right-hand operand,
-        // this only reaches as far as a bare identifier - not embeddable
-        // mid-expression like `1 + x++`, same limitation compound assignment
-        // already has.
+        // `x++`/`x--` desugar to `x = x + 1`/`x = x - 1` - not embeddable
+        // mid-expression like `1 + x++`, same as compound assignment below.
         if self.match_kind(&TokenKind::PlusPlus) {
             return self.incr_decr(expr, BinaryOp::Add);
         }

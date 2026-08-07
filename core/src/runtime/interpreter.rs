@@ -41,11 +41,8 @@ impl Interpreter {
         }
     }
 
-    // Binds a Rust function into the global scope under `name`, callable from
-    // Nib scripts like any other function. It's just another Value, so it
-    // composes with the rest of the interpreter for free (can be passed
-    // around, shadowed, etc.) - the only new code is dispatching to it in
-    // `eval_call` below.
+    // Just another Value bound in the global scope, so it composes for free
+    // (can be shadowed, passed around, etc.).
     pub fn register_native(
         &mut self,
         name: impl Into<String>,
@@ -124,9 +121,7 @@ impl Interpreter {
         }
     }
 
-    // Arms are tested top-to-bottom using the same equality semantics as
-    // `==`/`!=` (`values_equal` - numeric Int/Float coercion, no cross-type
-    // coercion otherwise). First match wins, no fallthrough between arms.
+    // Arms tested top-to-bottom with `==`'s equality; first match wins, no fallthrough.
     fn exec_match(&mut self, match_stmt: &MatchStmt) -> Result<Flow, RuntimeError> {
         let subject = self.eval(&match_stmt.subject)?;
         for arm in &match_stmt.arms {
@@ -204,12 +199,9 @@ impl Interpreter {
         }
     }
 
-    // `iterable` is evaluated once up front, like a `for` loop's condition
-    // is checked fresh each time but the collection itself isn't - so
-    // reassigning the source variable mid-loop doesn't change what's being
-    // iterated. Since arrays are a value type (see the arrays section),
-    // iterating hands each element to the loop body by value too: mutating
-    // the loop variable never writes back into the array.
+    // `iterable` is evaluated once up front, so reassigning it mid-loop
+    // doesn't change what's iterated; each element is handed to the body by
+    // value, so mutating the loop variable never writes back into the array.
     fn exec_for_in(&mut self, for_in_stmt: &ForInStmt) -> Result<Flow, RuntimeError> {
         let iterable = self.eval(&for_in_stmt.iterable)?;
         let items = match iterable {
@@ -470,12 +462,9 @@ impl Interpreter {
         }
     }
 
-    // Arrays are a value type here, like every other Value (cloned on
-    // read/assign) - there's no shared mutable storage to reach into. So
-    // "mutating" one means: read a copy of the whole array, splice in the new
-    // element, and hand the patched copy back to the caller to write
-    // wherever `object` actually lives (a variable, or another level of
-    // array nesting).
+    // Arrays are a value type - "mutating" means reading a copy, splicing in
+    // the new element, and handing the patched copy back to the caller to
+    // write wherever `object` actually lives.
     fn with_index_replaced(
         &mut self,
         object: &Expr,
@@ -499,16 +488,11 @@ impl Interpreter {
         }
     }
 
-    // Writes `value` to an lvalue: a bare variable, or (recursively) an
-    // index into an array reached through one, e.g. `matrix[0][1] = x`. Each
-    // level patches its own copy of its array and hands it up to the next.
-    //
-    // Note: this re-evaluates `object`/`index` at each nesting level beyond
-    // the first (they were already evaluated once by the caller to read the
-    // current value). That's only observable if those sub-expressions have
-    // side effects (e.g. `matrix[i()][j()] = x` calling i()/j() twice) -
-    // accepted as a known limitation rather than adding a full lvalue-path
-    // pre-evaluation pass for what should be a rare case.
+    // Writes `value` to an lvalue: a bare variable, or (recursively) an index
+    // into an array reached through one, e.g. `matrix[0][1] = x`. Re-evaluates
+    // `object`/`index` at each nesting level beyond the first - only
+    // observable if those sub-expressions have side effects, a known
+    // limitation rather than a full lvalue-path pre-evaluation pass.
     fn assign_to_target(&mut self, target: &Expr, value: Value) -> Result<(), RuntimeError> {
         match target {
             Expr::Ident(name) => self.env.assign(name, value).map_err(|msg| self.error(msg)),
@@ -560,13 +544,9 @@ impl Interpreter {
         Ok(new_elem)
     }
 
-    // `target.method(args)` dispatches through `Value::call_method` (see its
-    // doc comment for the Pure/Mutating split). Mutating methods reuse
-    // `assign_to_target` to write the receiver's new state back to wherever
-    // it came from - so `arr.push(1)` on a plain variable or nested index
-    // works, but calling one on a non-lvalue (e.g. `getArr().push(1)`) fails
-    // with the same "invalid assignment target" error index-assignment
-    // already gives for the equivalent case.
+    // Mutating methods (see `Value::call_method`) reuse `assign_to_target` to
+    // write the receiver back - fails on a non-lvalue receiver the same way
+    // index-assignment does.
     fn eval_method_call(
         &mut self,
         target: &Expr,

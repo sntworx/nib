@@ -124,9 +124,7 @@ impl Lexer {
                         Some('"') => value.push('"'),
                         Some('\\') => value.push('\\'),
                         Some(other) => {
-                            // unknown escape - decide policy: error or pass-through.
-                            // Passing through keeps the lexer lenient; flip to an Err
-                            // if you want strict escape validation.
+                            // unknown escape - pass through leniently rather than erroring
                             value.push('\\');
                             value.push(other);
                         }
