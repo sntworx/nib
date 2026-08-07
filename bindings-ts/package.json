@@ -3,6 +3,16 @@
   "version": "0.1.0",
   "description": "TypeScript/WebAssembly bindings for the nib scripting language",
   "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sntworx/nib.git"
+  },
+  "homepage": "https://github.com/sntworx/nib",
+  "bugs": {
+    "url": "https://github.com/sntworx/nib/issues"
+  },
+  "author": "Mateusz Jezierski",
+  "keywords": ["nib", "scripting", "language", "interpreter", "wasm"],
   "type": "module",
   "main": "./pkg/node/nib_ts.js",
   "module": "./pkg/bundler/nib_ts.js",
