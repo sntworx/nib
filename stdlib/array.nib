@@ -1,4 +1,4 @@
-func arrayContains(arr, value) {
+func array_contains(arr, value) {
     for item in arr {
         if item == value {
             return true;
@@ -7,7 +7,7 @@ func arrayContains(arr, value) {
     return false;
 }
 
-func arrayIndexOf(arr, value) {
+func array_index_of(arr, value) {
     var i = 0;
     for item in arr {
         if item == value {
@@ -18,7 +18,7 @@ func arrayIndexOf(arr, value) {
     return -1;
 }
 
-func arrayJoin(arr, sep) {
+func array_join(arr, sep) {
     var result = "";
     var i = 0;
     for item in arr {
@@ -31,7 +31,7 @@ func arrayJoin(arr, sep) {
     return result;
 }
 
-func arrayReverse(arr) {
+func array_reverse(arr) {
     var result = [];
     var i = arr.len() - 1;
     while i >= 0 {
@@ -41,7 +41,7 @@ func arrayReverse(arr) {
     return result;
 }
 
-func arraySlice(arr, start, end) {
+func array_slice(arr, start, end) {
     var result = [];
     var i = start;
     while i < end {
@@ -51,7 +51,7 @@ func arraySlice(arr, start, end) {
     return result;
 }
 
-func arraySum(arr) {
+func array_sum(arr) {
     var total = 0;
     for item in arr {
         total = total + item;
@@ -59,7 +59,7 @@ func arraySum(arr) {
     return total;
 }
 
-func arrayMin(arr) {
+func array_min(arr) {
     var m = arr[0];
     for item in arr {
         if item < m {
@@ -69,7 +69,7 @@ func arrayMin(arr) {
     return m;
 }
 
-func arrayMax(arr) {
+func array_max(arr) {
     var m = arr[0];
     for item in arr {
         if item > m {
@@ -79,7 +79,7 @@ func arrayMax(arr) {
     return m;
 }
 
-func arrayMap(arr, fn) {
+func array_map(arr, fn) {
     var result = [];
     for item in arr {
         result.push(fn(item));
@@ -87,7 +87,7 @@ func arrayMap(arr, fn) {
     return result;
 }
 
-func arrayFilter(arr, fn) {
+func array_filter(arr, fn) {
     var result = [];
     for item in arr {
         if fn(item) {
@@ -97,7 +97,7 @@ func arrayFilter(arr, fn) {
     return result;
 }
 
-func arrayReduce(arr, fn, initial) {
+func array_reduce(arr, fn, initial) {
     var acc = initial;
     for item in arr {
         acc = fn(acc, item);

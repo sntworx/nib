@@ -1,25 +1,25 @@
-func mathAbs(x) {
+func math_abs(x) {
     if x < 0 {
         return -x;
     }
     return x;
 }
 
-func mathMin(a, b) {
+func math_min(a, b) {
     if a < b {
         return a;
     }
     return b;
 }
 
-func mathMax(a, b) {
+func math_max(a, b) {
     if a > b {
         return a;
     }
     return b;
 }
 
-func mathClamp(x, lo, hi) {
+func math_clamp(x, lo, hi) {
     if x < lo {
         return lo;
     }
@@ -29,9 +29,9 @@ func mathClamp(x, lo, hi) {
     return x;
 }
 
-func mathPow(base, exponent) {
+func math_pow(base, exponent) {
     if exponent < 0 {
-        return 1.0 / mathPow(base, -exponent);
+        return 1.0 / math_pow(base, -exponent);
     }
     var result = 1;
     var i = 0;

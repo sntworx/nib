@@ -238,11 +238,11 @@ Nothing pre-bound by default (the host opts scripts into native functions via `r
 
 Three small libraries in [`stdlib/`](stdlib/), written in `nib` itself, on top of the built-in Array/String/Float methods above. Not pre-bound — load whichever files you need with `include()`. Flat function names, no namespacing (see "What's not there" above), so this is exactly what a host or user could write and `include()` themselves.
 
-- **`stdlib/array.nib`**: `arrayContains(arr, value)`, `arrayIndexOf(arr, value)`, `arrayJoin(arr, sep)`, `arrayReverse(arr)`, `arraySlice(arr, start, end)`, `arraySum(arr)`, `arrayMin(arr)`, `arrayMax(arr)`, `arrayMap(arr, fn)`, `arrayFilter(arr, fn)`, `arrayReduce(arr, fn, initial)`.
-- **`stdlib/string.nib`**: `stringIndexOf(s, needle)`, `stringContains(s, needle)`, `stringStartsWith(s, prefix)`, `stringEndsWith(s, suffix)`, `stringSlice(s, start, end)`, `stringRepeat(s, count)`, `stringSplit(s, sep)`, `stringReplace(s, search, replacement)`.
-- **`stdlib/math.nib`**: `mathAbs(x)`, `mathMin(a, b)`, `mathMax(a, b)`, `mathClamp(x, lo, hi)`, `mathPow(base, exponent)` — integer exponents; a negative exponent returns a `Float`.
+- **`stdlib/array.nib`**: `array_contains(arr, value)`, `array_index_of(arr, value)`, `array_join(arr, sep)`, `array_reverse(arr)`, `array_slice(arr, start, end)`, `array_sum(arr)`, `array_min(arr)`, `array_max(arr)`, `array_map(arr, fn)`, `array_filter(arr, fn)`, `array_reduce(arr, fn, initial)`.
+- **`stdlib/string.nib`**: `str_index_of(s, needle)`, `str_contains(s, needle)`, `str_starts_with(s, prefix)`, `str_ends_with(s, suffix)`, `str_slice(s, start, end)`, `str_repeat(s, count)`, `str_split(s, sep)`, `str_replace(s, search, replacement)`.
+- **`stdlib/math.nib`**: `math_abs(x)`, `math_min(a, b)`, `math_max(a, b)`, `math_clamp(x, lo, hi)`, `math_pow(base, exponent)` — integer exponents; a negative exponent returns a `Float`.
 
-`arrayMap`/`arrayFilter`/`arrayReduce` take a `nib` function by name (e.g. `arrayMap(arr, double)`) — functions are ordinary values, so this needs no closures or special support.
+`array_map`/`array_filter`/`array_reduce` take a `nib` function by name (e.g. `array_map(arr, double)`) — functions are ordinary values, so this needs no closures or special support.
 
 ## Configuration
 

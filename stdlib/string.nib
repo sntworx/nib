@@ -1,4 +1,4 @@
-func _charsMatchAt(haystack, needle, at) {
+func _chars_match_at(haystack, needle, at) {
     var nLen = needle.len();
     if at + nLen > haystack.len() {
         return false;
@@ -13,7 +13,7 @@ func _charsMatchAt(haystack, needle, at) {
     return true;
 }
 
-func stringIndexOf(s, needle) {
+func str_index_of(s, needle) {
     var sChars = s.chars();
     var nChars = needle.chars();
     var nLen = nChars.len();
@@ -22,7 +22,7 @@ func stringIndexOf(s, needle) {
     }
     var i = 0;
     while i <= sChars.len() - nLen {
-        if _charsMatchAt(sChars, nChars, i) {
+        if _chars_match_at(sChars, nChars, i) {
             return i;
         }
         i = i + 1;
@@ -30,24 +30,24 @@ func stringIndexOf(s, needle) {
     return -1;
 }
 
-func stringContains(s, needle) {
-    return stringIndexOf(s, needle) >= 0;
+func str_contains(s, needle) {
+    return str_index_of(s, needle) >= 0;
 }
 
-func stringStartsWith(s, prefix) {
-    return _charsMatchAt(s.chars(), prefix.chars(), 0);
+func str_starts_with(s, prefix) {
+    return _chars_match_at(s.chars(), prefix.chars(), 0);
 }
 
-func stringEndsWith(s, suffix) {
+func str_ends_with(s, suffix) {
     var sChars = s.chars();
     var suChars = suffix.chars();
     if suChars.len() > sChars.len() {
         return false;
     }
-    return _charsMatchAt(sChars, suChars, sChars.len() - suChars.len());
+    return _chars_match_at(sChars, suChars, sChars.len() - suChars.len());
 }
 
-func stringSlice(s, start, end) {
+func str_slice(s, start, end) {
     var chars = s.chars();
     var result = "";
     var i = start;
@@ -58,7 +58,7 @@ func stringSlice(s, start, end) {
     return result;
 }
 
-func stringRepeat(s, count) {
+func str_repeat(s, count) {
     var result = "";
     var i = 0;
     while i < count {
@@ -68,7 +68,7 @@ func stringRepeat(s, count) {
     return result;
 }
 
-func stringSplit(s, sep) {
+func str_split(s, sep) {
     var sChars = s.chars();
     var sepChars = sep.chars();
     var sepLen = sepChars.len();
@@ -80,7 +80,7 @@ func stringSplit(s, sep) {
     var current = "";
     var i = 0;
     while i < sLen {
-        if _charsMatchAt(sChars, sepChars, i) {
+        if _chars_match_at(sChars, sepChars, i) {
             result.push(current);
             current = "";
             i = i + sepLen;
@@ -93,7 +93,7 @@ func stringSplit(s, sep) {
     return result;
 }
 
-func stringReplace(s, search, replacement) {
+func str_replace(s, search, replacement) {
     var sChars = s.chars();
     var seChars = search.chars();
     var seLen = seChars.len();
@@ -104,7 +104,7 @@ func stringReplace(s, search, replacement) {
     var result = "";
     var i = 0;
     while i < sLen {
-        if _charsMatchAt(sChars, seChars, i) {
+        if _chars_match_at(sChars, seChars, i) {
             result = result + replacement;
             i = i + seLen;
         } else {
