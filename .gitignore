@@ -4,6 +4,7 @@
 # Build files
 /target
 /bindings-ts/pkg
+/dist
 *.tgz
 
 # Dev files

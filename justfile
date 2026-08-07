@@ -17,6 +17,20 @@ remove-php-extension:
 update-php-extension:
   cd bindings-php && cargo php remove --yes && cargo php install --release --yes
 
+# Builds + names the release cdylib as dist/php-nib/php_nib-v<version>-php<major.minor>-<target>.<ext>.
+# Target defaults to the host triple; PHP version comes from whichever `php` is on PATH.
+package-bindings-php target='':
+  ./bindings-php/scripts/package.sh {{target}}
+
+package-bindings-php-macos-arm64:
+  ./bindings-php/scripts/package.sh aarch64-apple-darwin
+
+package-bindings-php-linux-x64-gnu:
+  ./bindings-php/scripts/package.sh x86_64-unknown-linux-gnu
+
+package-bindings-php-linux-x64-musl:
+  ./bindings-php/scripts/package.sh x86_64-unknown-linux-musl
+
 # TS Bindings
 
 build-bindings-ts-web:
@@ -32,7 +46,8 @@ build-bindings-ts: build-bindings-ts-web build-bindings-ts-bundler build-binding
   rm -f bindings-ts/pkg/*/.gitignore
 
 pack-bindings-ts: build-bindings-ts
-  cd bindings-ts && npm pack
+  mkdir -p dist/ts-nib
+  cd bindings-ts && npm pack --pack-destination ../dist/ts-nib
 
 # Cargo
 
