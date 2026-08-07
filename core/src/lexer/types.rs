@@ -35,6 +35,7 @@ pub enum TokenKind {
     RBracket,  // ]
     Dot,       // .
     Comma,     // ,
+    Colon,     // :
 
     // operators
     Assign,     // =
@@ -96,6 +97,7 @@ impl fmt::Display for TokenKind {
             TokenKind::RBracket => write!(f, "']'"),
             TokenKind::Dot => write!(f, "'.'"),
             TokenKind::Comma => write!(f, "','"),
+            TokenKind::Colon => write!(f, "':'"),
 
             TokenKind::Assign => write!(f, "'='"),
             TokenKind::Eq => write!(f, "'=='"),

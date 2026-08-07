@@ -669,6 +669,22 @@ impl Parser {
         Ok(expr)
     }
 
+    // Map literal keys are static: a string literal, or a bare identifier as
+    // sugar for its own name (`{name: "Bob"}` == `{"name": "Bob"}`).
+    fn map_key(&mut self) -> Result<String, ParseError> {
+        match self.peek().kind.clone() {
+            TokenKind::Str(s) => {
+                self.advance();
+                Ok(s)
+            }
+            TokenKind::Ident(name) => {
+                self.advance();
+                Ok(name)
+            }
+            _ => Err(self.error("expected string literal or identifier as map key")),
+        }
+    }
+
     fn primary(&mut self) -> Result<Expr, ParseError> {
         let tok = self.peek().clone();
         match tok.kind {
@@ -719,6 +735,23 @@ impl Parser {
                 }
                 self.expect(&TokenKind::RBracket, "to close array literal")?;
                 Ok(Expr::Array(elements))
+            }
+            TokenKind::LBrace => {
+                self.advance();
+                let mut pairs = Vec::new();
+                if !self.check(&TokenKind::RBrace) {
+                    loop {
+                        let key = self.map_key()?;
+                        self.expect(&TokenKind::Colon, "after map key")?;
+                        let value = self.expression()?;
+                        pairs.push((key, value));
+                        if !self.match_kind(&TokenKind::Comma) {
+                            break;
+                        }
+                    }
+                }
+                self.expect(&TokenKind::RBrace, "to close map literal")?;
+                Ok(Expr::Map(pairs))
             }
             other => Err(self.error(&format!("unexpected {}", other))),
         }

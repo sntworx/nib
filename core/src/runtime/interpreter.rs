@@ -282,6 +282,17 @@ impl Interpreter {
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(Value::Array(values))
             }
+            Expr::Map(pairs) => {
+                let mut entries: Vec<(String, Value)> = Vec::with_capacity(pairs.len());
+                for (key, expr) in pairs {
+                    let value = self.eval(expr)?;
+                    match entries.iter_mut().find(|(k, _)| k == key) {
+                        Some((_, v)) => *v = value,
+                        None => entries.push((key.clone(), value)),
+                    }
+                }
+                Ok(Value::Map(entries))
+            }
             Expr::Grouping(inner) => self.eval(inner),
             Expr::MethodCall {
                 target,
@@ -426,54 +437,8 @@ impl Interpreter {
         let object_val = self.eval(object)?;
         let index_val = self.eval(index)?;
 
-        let items = match object_val {
-            Value::Array(items) => items,
-            other => return Err(self.error(format!("cannot index into {}", other.type_name()))),
-        };
-
-        let idx = match index_val {
-            Value::Int(i) => i,
-            other => {
-                return Err(self.error(format!(
-                    "array index must be an integer, got {}",
-                    other.type_name()
-                )));
-            }
-        };
-
-        if idx < 0 || idx as usize >= items.len() {
-            return Err(self.error(format!(
-                "index {} out of bounds for array of length {}",
-                idx,
-                items.len()
-            )));
-        }
-
-        Ok(items[idx as usize].clone())
-    }
-
-    fn eval_index_value(&mut self, index: &Expr) -> Result<i64, RuntimeError> {
-        match self.eval(index)? {
-            Value::Int(i) => Ok(i),
-            other => Err(self.error(format!(
-                "array index must be an integer, got {}",
-                other.type_name()
-            ))),
-        }
-    }
-
-    // Arrays are a value type - "mutating" means reading a copy, splicing in
-    // the new element, and handing the patched copy back to the caller to
-    // write wherever `object` actually lives.
-    fn with_index_replaced(
-        &mut self,
-        object: &Expr,
-        idx: i64,
-        new_elem: Value,
-    ) -> Result<Value, RuntimeError> {
-        let mut array = self.eval(object)?;
-        match &mut array {
-            Value::Array(items) => {
+        match (object_val, index_val) {
+            (Value::Array(items), Value::Int(idx)) => {
                 if idx < 0 || idx as usize >= items.len() {
                     return Err(self.error(format!(
                         "index {} out of bounds for array of length {}",
@@ -481,24 +446,81 @@ impl Interpreter {
                         items.len()
                     )));
                 }
-                items[idx as usize] = new_elem;
-                Ok(array)
+                Ok(items[idx as usize].clone())
             }
+            (Value::Array(_), other) => Err(self.error(format!(
+                "array index must be an integer, got {}",
+                other.type_name()
+            ))),
+            (Value::Map(pairs), Value::Str(key)) => pairs
+                .iter()
+                .find(|(k, _)| *k == key)
+                .map(|(_, v)| v.clone())
+                .ok_or_else(|| self.error(format!("key '{}' not found in map", key))),
+            (Value::Map(_), other) => Err(self.error(format!(
+                "map key must be a string, got {}",
+                other.type_name()
+            ))),
+            (other, _) => Err(self.error(format!("cannot index into {}", other.type_name()))),
+        }
+    }
+
+    // Arrays and maps are both value types - "mutating" means reading a
+    // copy, splicing in the new element/entry, and handing the patched copy
+    // back to the caller to write wherever `object` actually lives.
+    fn with_index_replaced(
+        &mut self,
+        object: &Expr,
+        index_val: Value,
+        new_elem: Value,
+    ) -> Result<Value, RuntimeError> {
+        let mut container = self.eval(object)?;
+        match &mut container {
+            Value::Array(items) => match index_val {
+                Value::Int(idx) => {
+                    if idx < 0 || idx as usize >= items.len() {
+                        return Err(self.error(format!(
+                            "index {} out of bounds for array of length {}",
+                            idx,
+                            items.len()
+                        )));
+                    }
+                    items[idx as usize] = new_elem;
+                    Ok(container)
+                }
+                other => Err(self.error(format!(
+                    "array index must be an integer, got {}",
+                    other.type_name()
+                ))),
+            },
+            Value::Map(pairs) => match index_val {
+                Value::Str(key) => {
+                    match pairs.iter_mut().find(|(k, _)| *k == key) {
+                        Some((_, v)) => *v = new_elem,
+                        None => pairs.push((key, new_elem)),
+                    }
+                    Ok(container)
+                }
+                other => Err(self.error(format!(
+                    "map key must be a string, got {}",
+                    other.type_name()
+                ))),
+            },
             other => Err(self.error(format!("cannot index into {}", other.type_name()))),
         }
     }
 
     // Writes `value` to an lvalue: a bare variable, or (recursively) an index
-    // into an array reached through one, e.g. `matrix[0][1] = x`. Re-evaluates
-    // `object`/`index` at each nesting level beyond the first - only
-    // observable if those sub-expressions have side effects, a known
+    // into an array/map reached through one, e.g. `matrix[0][1] = x`.
+    // Re-evaluates `object`/`index` at each nesting level beyond the first -
+    // only observable if those sub-expressions have side effects, a known
     // limitation rather than a full lvalue-path pre-evaluation pass.
     fn assign_to_target(&mut self, target: &Expr, value: Value) -> Result<(), RuntimeError> {
         match target {
             Expr::Ident(name) => self.env.assign(name, value).map_err(|msg| self.error(msg)),
             Expr::Index { object, index } => {
-                let idx = self.eval_index_value(index)?;
-                let patched = self.with_index_replaced(object, idx, value)?;
+                let index_val = self.eval(index)?;
+                let patched = self.with_index_replaced(object, index_val, value)?;
                 self.assign_to_target(object, patched)
             }
             _ => Err(self.error("invalid assignment target".to_string())),
@@ -512,36 +534,72 @@ impl Interpreter {
         op: Option<&BinaryOp>,
         value: &Expr,
     ) -> Result<Value, RuntimeError> {
-        let idx = self.eval_index_value(index)?;
-        let current_array = self.eval(object)?;
+        let index_val = self.eval(index)?;
+        let current_container = self.eval(object)?;
 
-        let items = match &current_array {
-            Value::Array(items) => items,
-            other => return Err(self.error(format!("cannot index into {}", other.type_name()))),
-        };
-        if idx < 0 || idx as usize >= items.len() {
-            return Err(self.error(format!(
-                "index {} out of bounds for array of length {}",
-                idx,
-                items.len()
-            )));
+        match current_container {
+            Value::Array(mut items) => {
+                let idx = match index_val {
+                    Value::Int(i) => i,
+                    other => {
+                        return Err(self.error(format!(
+                            "array index must be an integer, got {}",
+                            other.type_name()
+                        )));
+                    }
+                };
+                if idx < 0 || idx as usize >= items.len() {
+                    return Err(self.error(format!(
+                        "index {} out of bounds for array of length {}",
+                        idx,
+                        items.len()
+                    )));
+                }
+                let idx_usize = idx as usize;
+                let current_elem = items[idx_usize].clone();
+                let rhs = self.eval(value)?;
+                let new_elem = match op {
+                    Some(op) => self.apply_binary_op(op, current_elem, rhs)?,
+                    None => rhs,
+                };
+                items[idx_usize] = new_elem.clone();
+                self.assign_to_target(object, Value::Array(items))?;
+                Ok(new_elem)
+            }
+            Value::Map(mut pairs) => {
+                let key = match index_val {
+                    Value::Str(s) => s,
+                    other => {
+                        return Err(self.error(format!(
+                            "map key must be a string, got {}",
+                            other.type_name()
+                        )));
+                    }
+                };
+                let existing = pairs.iter().position(|(k, _)| *k == key);
+                let new_elem = match op {
+                    Some(op) => {
+                        let pos = existing.ok_or_else(|| {
+                            self.error(format!(
+                                "cannot use compound assignment on missing map key '{}'",
+                                key
+                            ))
+                        })?;
+                        let current_val = pairs[pos].1.clone();
+                        let rhs = self.eval(value)?;
+                        self.apply_binary_op(op, current_val, rhs)?
+                    }
+                    None => self.eval(value)?,
+                };
+                match existing {
+                    Some(pos) => pairs[pos].1 = new_elem.clone(),
+                    None => pairs.push((key, new_elem.clone())),
+                }
+                self.assign_to_target(object, Value::Map(pairs))?;
+                Ok(new_elem)
+            }
+            other => Err(self.error(format!("cannot index into {}", other.type_name()))),
         }
-        let idx_usize = idx as usize;
-        let current_elem = items[idx_usize].clone();
-
-        let rhs = self.eval(value)?;
-        let new_elem = match op {
-            Some(op) => self.apply_binary_op(op, current_elem, rhs)?,
-            None => rhs,
-        };
-
-        let mut patched = current_array;
-        if let Value::Array(items) = &mut patched {
-            items[idx_usize] = new_elem.clone();
-        }
-
-        self.assign_to_target(object, patched)?;
-        Ok(new_elem)
     }
 
     // Mutating methods (see `Value::call_method`) reuse `assign_to_target` to

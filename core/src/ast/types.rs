@@ -67,6 +67,10 @@ pub enum Expr {
         value: Box<Expr>,
     },
     Array(Vec<Expr>),
+    // `{key: value, ...}` - keys are static (string literal or bare ident,
+    // captured as a plain String at parse time), values are arbitrary
+    // expressions.
+    Map(Vec<(String, Expr)>),
     Grouping(Box<Expr>),
     // `target.method(args)` - a closed, interpreter-known set of pseudo-
     // methods on built-in types (see `Value::call_method`), not general

@@ -301,6 +301,10 @@ impl Lexer {
                 self.advance();
                 TokenKind::Comma
             }
+            ':' => {
+                self.advance();
+                TokenKind::Colon
+            }
             '+' => {
                 self.advance();
                 if self.matches('=') {

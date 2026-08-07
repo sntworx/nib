@@ -1,4 +1,4 @@
-use js_sys::{Array, Function};
+use js_sys::{Array, Function, Object, Reflect};
 use nib_core::{Nib as NibCore, Value};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
@@ -77,6 +77,14 @@ fn value_to_js(value: &Value) -> Result<JsValue, String> {
             }
             arr.into()
         }
+        Value::Map(pairs) => {
+            let obj = Object::new();
+            for (k, v) in pairs {
+                Reflect::set(&obj, &JsValue::from_str(k), &value_to_js(v)?)
+                    .map_err(|e| describe_js_error(&e))?;
+            }
+            obj.into()
+        }
         Value::Function(_) | Value::NativeFunction(_) => {
             return Err("cannot pass a function value to a JS callback".to_string());
         }
@@ -104,6 +112,17 @@ fn js_to_value(js: &JsValue) -> Result<Value, String> {
             .map(|item| js_to_value(&item))
             .collect::<Result<Vec<_>, _>>()
             .map(Value::Array)
+    } else if js.is_object() {
+        let obj = Object::from(js.clone());
+        Object::keys(&obj)
+            .iter()
+            .map(|key| {
+                let value = Reflect::get(&obj, &key).map_err(|e| describe_js_error(&e))?;
+                let key = key.as_string().ok_or("expected string object key")?;
+                Ok((key, js_to_value(&value)?))
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map(Value::Map)
     } else {
         Err("unsupported JS value returned from callback".to_string())
     }

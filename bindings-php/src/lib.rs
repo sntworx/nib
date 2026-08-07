@@ -1,7 +1,7 @@
 use ext_php_rs::convert::{IntoZval, IntoZvalDyn};
 use ext_php_rs::error::Error as PhpRsError;
 use ext_php_rs::prelude::*;
-use ext_php_rs::types::{ZendCallable, ZendObject, Zval};
+use ext_php_rs::types::{ZendCallable, ZendHashTable, ZendObject, Zval};
 use ext_php_rs::zend::ClassEntry;
 use nib_core::{Nib as NibCore, Value};
 
@@ -176,6 +176,14 @@ fn value_to_zval(value: &Value) -> Result<Zval, String> {
             .collect::<Result<Vec<_>, _>>()?
             .into_zval(false)
             .map_err(|e| e.to_string())?,
+        Value::Map(pairs) => {
+            let mut ht = ZendHashTable::new();
+            for (k, v) in pairs {
+                ht.insert(k.as_str(), value_to_zval(v)?)
+                    .map_err(|e| e.to_string())?;
+            }
+            ht.into_zval(false).map_err(|e| e.to_string())?
+        }
         Value::Function(_) | Value::NativeFunction(_) => {
             return Err("cannot pass a function value to a PHP callback".to_string());
         }
@@ -195,10 +203,17 @@ fn zval_to_value(zval: &Zval) -> Result<Value, String> {
     } else if zval.is_null() {
         Ok(Value::Null)
     } else if let Some(arr) = zval.array() {
-        arr.values()
-            .map(zval_to_value)
-            .collect::<Result<Vec<_>, _>>()
-            .map(Value::Array)
+        if arr.has_sequential_keys() {
+            arr.values()
+                .map(zval_to_value)
+                .collect::<Result<Vec<_>, _>>()
+                .map(Value::Array)
+        } else {
+            arr.iter()
+                .map(|(k, v)| zval_to_value(v).map(|v| (k.to_string(), v)))
+                .collect::<Result<Vec<_>, _>>()
+                .map(Value::Map)
+        }
     } else {
         Err("unsupported PHP value returned from callback".to_string())
     }

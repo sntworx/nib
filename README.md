@@ -25,6 +25,7 @@ The same language also reaches multiple host runtimes: a PHP extension (`binding
   - [Control flow](#control-flow)
   - [Functions](#functions)
   - [Arrays](#arrays)
+  - [Maps](#maps)
   - [Strings](#strings)
   - [Numbers](#numbers)
   - [What's not there](#whats-not-there)
@@ -58,6 +59,7 @@ var s = "line 1\nline 2\ttabbed\\backslash \"quoted\"";
 var b = true;
 var n = null;
 var a = [1, 2, 3];
+var m = {name: "Bob", "favorite number": 7};
 ```
 
 ### Variables & assignment
@@ -127,7 +129,7 @@ match x {
 
 `if`/`while`/`match` conditions don't need parens; C-style `for`'s three clauses do, and each of them is optional (`for (;;) { }` loops forever). `for x in arr { }` never has parens — that's how it's told apart from C-style `for`. `break`/`continue` are only valid inside a loop.
 
-`for x in arr` iterates a value-type array by value: `arr` is evaluated once up front (reassigning it mid-loop doesn't change what's iterated), and `x` is a fresh binding each iteration that doesn't alias back into the array. It's array-only for now — no string iteration, no map/dict type.
+`for x in arr` iterates a value-type array by value: `arr` is evaluated once up front (reassigning it mid-loop doesn't change what's iterated), and `x` is a fresh binding each iteration that doesn't alias back into the array. It's array-only — no direct string or map iteration; use `for c in s.chars() { }` for strings and `for k in m.keys() { }`/`for v in m.values() { }` for maps.
 
 Each `match` arm is `case` followed by a pattern expression (any expression, not just a literal) and its block; arms are tried top-to-bottom and the first whose pattern equals the subject (same equality as `==`) runs, with no fallthrough. `else` is optional and, if present, must be the last arm.
 
@@ -166,7 +168,29 @@ var last = arr.pop();  // -> 4, and writes the shrunk array back to `arr`
 arr.len();        // -> 3
 ```
 
-`.method()` is a small, fixed set of built-in pseudo-methods on arrays and strings — not general member access or user-extensible dispatch. `push`/`pop` write their result back to wherever the receiver came from (a variable or a nested index, e.g. `matrix[0].push(x)`), same as `arr[i] = x` does; calling one on something that isn't a variable or index (like a bare function call's return value) fails the same way index-assignment into a temporary already does.
+`.method()` is a small, fixed set of built-in pseudo-methods on arrays, maps, and strings — not general member access or user-extensible dispatch. `push`/`pop` write their result back to wherever the receiver came from (a variable or a nested index, e.g. `matrix[0].push(x)`), same as `arr[i] = x` does; calling one on something that isn't a variable or index (like a bare function call's return value) fails the same way index-assignment into a temporary already does.
+
+### Maps
+
+```
+var user = {name: "Bob", age: 30};
+user["age"] += 1;
+user["email"] = "bob@example.com";  // new key: just inserts, no push() needed
+```
+
+Maps are string-keyed and, like arrays, a value type: `var b = user; b["age"] = 0;` does **not** change `user`. Insertion order is preserved, so printing/`keys()`/`values()` are always deterministic — a map is not a `HashMap`.
+
+```
+var m = {a: 1, b: 2};
+m.len();          // -> 2
+m.has("a");       // -> true
+m.get("z");       // -> null (never errors, unlike m["z"])
+m.remove("a");    // -> 1, and writes the shrunk map back to `m`
+m.keys();         // -> ["b"]
+m.values();       // -> [2]
+```
+
+`m[key] = value` always upserts — inserts a new key or overwrites an existing one, unlike arrays where index-assignment is bounds-checked and can't grow. `m[key]` on a missing key is a runtime error (use `.get(key)`/`.has(key)` to check first); compound assignment (`m[key] += value`) also requires the key to already exist. Two maps compare equal (`==`) if they have the same keys and values, regardless of insertion order.
 
 ### Strings
 
@@ -199,7 +223,7 @@ for c in "abc".chars() {
 
 ### What's not there
 
-Nothing pre-bound by default (the host opts scripts into native functions via `register_func`, or into the `stdlib/` libraries via `include()`, see above), no closures, no general `.` member access (only the fixed set of array/string pseudo-methods above). `++`/`--` (either prefix or postfix) only work as a whole statement, e.g. `x++;` or a `for` loop's clauses — not embeddable mid-expression like `1 + x++`.
+Nothing pre-bound by default (the host opts scripts into native functions via `register_func`, or into the `stdlib/` libraries via `include()`, see above), no closures, no general `.` member access (only the fixed set of array/map/string pseudo-methods above) — so a map has no `Math.floor()`-style dotted namespacing either. `++`/`--` (either prefix or postfix) only work as a whole statement, e.g. `x++;` or a `for` loop's clauses — not embeddable mid-expression like `1 + x++`.
 
 ## Workspace layout
 

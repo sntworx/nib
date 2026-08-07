@@ -32,6 +32,7 @@ pub enum Value {
     Str(String),
     Bool(bool),
     Array(Vec<Value>),
+    Map(Vec<(String, Value)>),
     Function(Rc<Function>),
     NativeFunction(Rc<NativeFunction>),
     Null,
@@ -48,6 +49,7 @@ impl Value {
             Value::Str(_) => "string",
             Value::Bool(_) => "bool",
             Value::Array(_) => "array",
+            Value::Map(_) => "map",
             Value::Function(_) => "function",
             Value::NativeFunction(_) => "native function",
             Value::Null => "null",
@@ -87,6 +89,69 @@ impl Value {
                     .pop()
                     .ok_or_else(|| "cannot pop from an empty array".to_string())?;
                 Ok(MethodResult::Mutating(popped))
+            }
+            (Value::Map(pairs), "len") => {
+                if !args.is_empty() {
+                    return Err(format!("'len' expects 0 arguments, got {}", args.len()));
+                }
+                Ok(MethodResult::Pure(Value::Int(pairs.len() as i64)))
+            }
+            (Value::Map(pairs), "has") => {
+                if args.len() != 1 {
+                    return Err(format!("'has' expects 1 argument, got {}", args.len()));
+                }
+                let key = match &args[0] {
+                    Value::Str(s) => s,
+                    _ => return Err("'has' expects a string argument".to_string()),
+                };
+                Ok(MethodResult::Pure(Value::Bool(
+                    pairs.iter().any(|(k, _)| k == key),
+                )))
+            }
+            (Value::Map(pairs), "get") => {
+                if args.len() != 1 {
+                    return Err(format!("'get' expects 1 argument, got {}", args.len()));
+                }
+                let key = match &args[0] {
+                    Value::Str(s) => s,
+                    _ => return Err("'get' expects a string argument".to_string()),
+                };
+                Ok(MethodResult::Pure(
+                    pairs
+                        .iter()
+                        .find(|(k, _)| k == key)
+                        .map(|(_, v)| v.clone())
+                        .unwrap_or(Value::Null),
+                ))
+            }
+            (Value::Map(pairs), "remove") => {
+                if args.len() != 1 {
+                    return Err(format!("'remove' expects 1 argument, got {}", args.len()));
+                }
+                let key = match &args[0] {
+                    Value::Str(s) => s.clone(),
+                    _ => return Err("'remove' expects a string argument".to_string()),
+                };
+                let pos = pairs
+                    .iter()
+                    .position(|(k, _)| *k == key)
+                    .ok_or_else(|| format!("key '{}' not found in map", key))?;
+                let (_, removed) = pairs.remove(pos);
+                Ok(MethodResult::Mutating(removed))
+            }
+            (Value::Map(pairs), "keys") => {
+                if !args.is_empty() {
+                    return Err(format!("'keys' expects 0 arguments, got {}", args.len()));
+                }
+                let keys = pairs.iter().map(|(k, _)| Value::Str(k.clone())).collect();
+                Ok(MethodResult::Pure(Value::Array(keys)))
+            }
+            (Value::Map(pairs), "values") => {
+                if !args.is_empty() {
+                    return Err(format!("'values' expects 0 arguments, got {}", args.len()));
+                }
+                let values = pairs.iter().map(|(_, v)| v.clone()).collect();
+                Ok(MethodResult::Pure(Value::Array(values)))
             }
             (Value::Str(s), "len") => {
                 if !args.is_empty() {
@@ -161,6 +226,14 @@ impl PartialEq for Value {
             (Value::Str(a), Value::Str(b)) => a == b,
             (Value::Bool(a), Value::Bool(b)) => a == b,
             (Value::Array(a), Value::Array(b)) => a == b,
+            // Order-independent: unlike Vec<(String,Value)>'s own derived
+            // PartialEq, two maps with the same keys/values in different
+            // insertion order must compare equal.
+            (Value::Map(a), Value::Map(b)) => {
+                a.len() == b.len()
+                    && a.iter()
+                        .all(|(k, v)| b.iter().any(|(k2, v2)| k == k2 && v == v2))
+            }
             (Value::Function(a), Value::Function(b)) => Rc::ptr_eq(a, b),
             (Value::NativeFunction(a), Value::NativeFunction(b)) => Rc::ptr_eq(a, b),
             (Value::Null, Value::Null) => true,
@@ -185,6 +258,16 @@ impl fmt::Display for Value {
                     write!(f, "{}", item)?;
                 }
                 write!(f, "]")
+            }
+            Value::Map(pairs) => {
+                write!(f, "{{")?;
+                for (i, (k, v)) in pairs.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}: {}", k, v)?;
+                }
+                write!(f, "}}")
             }
             Value::Function(func) => write!(f, "<function {}>", func.name),
             Value::NativeFunction(func) => write!(f, "<native function {}>", func.name),
