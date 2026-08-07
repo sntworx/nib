@@ -8,6 +8,7 @@ use crate::ast::types::{
 use crate::runtime::environment::Environment;
 use crate::runtime::helpers::{as_f64, checked_float, values_equal};
 use crate::runtime::types::{Function, MethodResult, NativeFunction, RuntimeError, Value};
+use crate::types::Config;
 
 enum Flow {
     Normal,
@@ -16,19 +17,29 @@ enum Flow {
     Continue,
 }
 
-const MAX_CALL_DEPTH: usize = 1000;
-
 pub struct Interpreter {
     env: Environment,
     call_depth: usize,
+    max_call_depth: usize,
+    step_count: usize,
+    max_steps: usize,
+    max_string_length: usize,
+    max_array_length: usize,
+    max_map_size: usize,
     current_pos: (usize, usize),
 }
 
 impl Interpreter {
-    pub fn new() -> Self {
+    pub fn new(config: &Config) -> Self {
         Interpreter {
             env: Environment::new(),
             call_depth: 0,
+            max_call_depth: config.max_call_depth,
+            step_count: 0,
+            max_steps: config.max_steps,
+            max_string_length: config.max_string_length,
+            max_array_length: config.max_array_length,
+            max_map_size: config.max_map_size,
             current_pos: (0, 0),
         }
     }
@@ -38,6 +49,45 @@ impl Interpreter {
             message,
             line: self.current_pos.0,
             col: self.current_pos.1,
+        }
+    }
+
+    // Called once per statement executed and once per loop iteration (see
+    // exec_while/exec_for_body/exec_for_in), not once per exec() alone - a
+    // non-empty loop body ticks twice per iteration (once for the loop
+    // construct, once per body statement). Steps are a "units of work done"
+    // budget, not a precise iteration count.
+    fn tick(&mut self) -> Result<(), RuntimeError> {
+        if self.step_count >= self.max_steps {
+            return Err(self.error(format!(
+                "exceeded maximum execution steps of {}",
+                self.max_steps
+            )));
+        }
+        self.step_count += 1;
+        Ok(())
+    }
+
+    // Checked at every point a Str/Array/Map is constructed or grown (see
+    // call sites) - a &self, not &mut self, check so it's callable from
+    // apply_binary_op too.
+    fn check_size_limits(&self, value: &Value) -> Result<(), RuntimeError> {
+        match value {
+            Value::Str(s) if s.chars().count() > self.max_string_length => {
+                Err(self.error(format!(
+                    "string exceeds maximum length of {} characters",
+                    self.max_string_length
+                )))
+            }
+            Value::Array(items) if items.len() > self.max_array_length => Err(self.error(format!(
+                "array exceeds maximum length of {} elements",
+                self.max_array_length
+            ))),
+            Value::Map(pairs) if pairs.len() > self.max_map_size => Err(self.error(format!(
+                "map exceeds maximum size of {} entries",
+                self.max_map_size
+            ))),
+            _ => Ok(()),
         }
     }
 
@@ -58,6 +108,7 @@ impl Interpreter {
     }
 
     pub fn run(&mut self, ast: &Ast) -> Result<(), RuntimeError> {
+        self.step_count = 0;
         match self.exec_all(ast.nodes())? {
             Flow::Normal => Ok(()),
             Flow::Return(_) => Err(self.error("'return' outside of function".to_string())),
@@ -69,6 +120,7 @@ impl Interpreter {
 
     fn exec(&mut self, node: &AstNode) -> Result<Flow, RuntimeError> {
         self.current_pos = (node.line, node.col);
+        self.tick()?;
         match &node.kind {
             AstNodeKind::VarAssign(VarAssign { name, value }) => {
                 let value = self.eval(value)?;
@@ -138,6 +190,7 @@ impl Interpreter {
 
     fn exec_while(&mut self, while_stmt: &WhileStmt) -> Result<Flow, RuntimeError> {
         loop {
+            self.tick()?;
             match self.eval(&while_stmt.condition)? {
                 Value::Bool(true) => {}
                 Value::Bool(false) => return Ok(Flow::Normal),
@@ -171,6 +224,7 @@ impl Interpreter {
             self.exec(init)?;
         }
         loop {
+            self.tick()?;
             let should_continue = match &for_stmt.condition {
                 Some(condition) => match self.eval(condition)? {
                     Value::Bool(b) => b,
@@ -212,6 +266,7 @@ impl Interpreter {
         };
 
         for item in items {
+            self.tick()?;
             self.env.push_scope();
             self.env.define(for_in_stmt.var_name.clone(), item);
             let flow = self.exec_all(&for_in_stmt.body);
@@ -246,13 +301,17 @@ impl Interpreter {
 
     fn eval(&mut self, expr: &Expr) -> Result<Value, RuntimeError> {
         match expr {
-            Expr::Literal(lit) => Ok(match lit {
-                Literal::Int(v) => Value::Int(*v),
-                Literal::Float(v) => Value::Float(*v),
-                Literal::Str(v) => Value::Str(v.clone()),
-                Literal::Bool(v) => Value::Bool(*v),
-                Literal::Null => Value::Null,
-            }),
+            Expr::Literal(lit) => {
+                let value = match lit {
+                    Literal::Int(v) => Value::Int(*v),
+                    Literal::Float(v) => Value::Float(*v),
+                    Literal::Str(v) => Value::Str(v.clone()),
+                    Literal::Bool(v) => Value::Bool(*v),
+                    Literal::Null => Value::Null,
+                };
+                self.check_size_limits(&value)?;
+                Ok(value)
+            }
             Expr::Ident(name) => self
                 .env
                 .get(name)
@@ -280,7 +339,9 @@ impl Interpreter {
                     .iter()
                     .map(|e| self.eval(e))
                     .collect::<Result<Vec<_>, _>>()?;
-                Ok(Value::Array(values))
+                let value = Value::Array(values);
+                self.check_size_limits(&value)?;
+                Ok(value)
             }
             Expr::Map(pairs) => {
                 let mut entries: Vec<(String, Value)> = Vec::with_capacity(pairs.len());
@@ -291,7 +352,9 @@ impl Interpreter {
                         None => entries.push((key.clone(), value)),
                     }
                 }
-                Ok(Value::Map(entries))
+                let value = Value::Map(entries);
+                self.check_size_limits(&value)?;
+                Ok(value)
             }
             Expr::Grouping(inner) => self.eval(inner),
             Expr::MethodCall {
@@ -361,11 +424,31 @@ impl Interpreter {
         match (op, left_val, right_val) {
             (Eq, a, b) => Ok(Value::Bool(values_equal(&a, &b))),
             (NotEq, a, b) => Ok(Value::Bool(!values_equal(&a, &b))),
-            (Add, Value::Str(a), Value::Str(b)) => Ok(Value::Str(a + &b)),
-            (Add, Value::Str(a), Value::Int(b)) => Ok(Value::Str(format!("{}{}", a, b))),
-            (Add, Value::Str(a), Value::Float(b)) => Ok(Value::Str(format!("{}{}", a, b))),
-            (Add, Value::Int(a), Value::Str(b)) => Ok(Value::Str(format!("{}{}", a, b))),
-            (Add, Value::Float(a), Value::Str(b)) => Ok(Value::Str(format!("{}{}", a, b))),
+            (Add, Value::Str(a), Value::Str(b)) => {
+                let result = Value::Str(a + &b);
+                self.check_size_limits(&result)?;
+                Ok(result)
+            }
+            (Add, Value::Str(a), Value::Int(b)) => {
+                let result = Value::Str(format!("{}{}", a, b));
+                self.check_size_limits(&result)?;
+                Ok(result)
+            }
+            (Add, Value::Str(a), Value::Float(b)) => {
+                let result = Value::Str(format!("{}{}", a, b));
+                self.check_size_limits(&result)?;
+                Ok(result)
+            }
+            (Add, Value::Int(a), Value::Str(b)) => {
+                let result = Value::Str(format!("{}{}", a, b));
+                self.check_size_limits(&result)?;
+                Ok(result)
+            }
+            (Add, Value::Float(a), Value::Str(b)) => {
+                let result = Value::Str(format!("{}{}", a, b));
+                self.check_size_limits(&result)?;
+                Ok(result)
+            }
             (Add, Value::Int(a), Value::Int(b)) => a
                 .checked_add(b)
                 .map(Value::Int)
@@ -499,6 +582,7 @@ impl Interpreter {
                         Some((_, v)) => *v = new_elem,
                         None => pairs.push((key, new_elem)),
                     }
+                    self.check_size_limits(&container)?;
                     Ok(container)
                 }
                 other => Err(self.error(format!(
@@ -595,7 +679,9 @@ impl Interpreter {
                     Some(pos) => pairs[pos].1 = new_elem.clone(),
                     None => pairs.push((key, new_elem.clone())),
                 }
-                self.assign_to_target(object, Value::Map(pairs))?;
+                let patched = Value::Map(pairs);
+                self.check_size_limits(&patched)?;
+                self.assign_to_target(object, patched)?;
                 Ok(new_elem)
             }
             other => Err(self.error(format!("cannot index into {}", other.type_name()))),
@@ -622,8 +708,12 @@ impl Interpreter {
             .map_err(|msg| self.error(msg))?;
 
         match result {
-            MethodResult::Pure(value) => Ok(value),
+            MethodResult::Pure(value) => {
+                self.check_size_limits(&value)?;
+                Ok(value)
+            }
             MethodResult::Mutating(value) => {
+                self.check_size_limits(&receiver)?;
                 self.assign_to_target(target, receiver)?;
                 Ok(value)
             }
@@ -674,10 +764,10 @@ impl Interpreter {
         function: &Function,
         arg_values: Vec<Value>,
     ) -> Result<Value, RuntimeError> {
-        if self.call_depth >= MAX_CALL_DEPTH {
+        if self.call_depth >= self.max_call_depth {
             return Err(self.error(format!(
                 "stack overflow: exceeded maximum call depth of {}",
-                MAX_CALL_DEPTH
+                self.max_call_depth
             )));
         }
         self.call_depth += 1;

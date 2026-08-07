@@ -14,8 +14,8 @@ pub struct Ast {
 }
 
 impl Ast {
-    pub fn parse(tokens: Vec<Token>) -> Result<Ast, ParseError> {
-        Parser::new(tokens).parse()
+    pub fn parse(tokens: Vec<Token>, max_parse_depth: usize) -> Result<Ast, ParseError> {
+        Parser::new(tokens, max_parse_depth).parse()
     }
 
     pub fn nodes(&self) -> &[AstNode] {

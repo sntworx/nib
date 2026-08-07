@@ -3,7 +3,7 @@ use ext_php_rs::error::Error as PhpRsError;
 use ext_php_rs::prelude::*;
 use ext_php_rs::types::{ZendCallable, ZendHashTable, ZendObject, Zval};
 use ext_php_rs::zend::ClassEntry;
-use nib_core::{Nib as NibCore, Value};
+use nib_core::{Config, Nib as NibCore, Value};
 
 #[php_class]
 pub struct Nib {
@@ -12,10 +12,31 @@ pub struct Nib {
 
 #[php_impl]
 impl Nib {
-    pub fn __construct() -> Self {
-        Nib {
-            nib: NibCore::new(),
+    pub fn __construct(options: Option<&ZendHashTable>) -> PhpResult<Self> {
+        let mut config = Config::default();
+        if let Some(options) = options {
+            if let Some(v) = usize_option(options, "maxCallDepth")? {
+                config.max_call_depth = v;
+            }
+            if let Some(v) = usize_option(options, "maxParseDepth")? {
+                config.max_parse_depth = v;
+            }
+            if let Some(v) = usize_option(options, "maxSteps")? {
+                config.max_steps = v;
+            }
+            if let Some(v) = usize_option(options, "maxStringLength")? {
+                config.max_string_length = v;
+            }
+            if let Some(v) = usize_option(options, "maxArrayLength")? {
+                config.max_array_length = v;
+            }
+            if let Some(v) = usize_option(options, "maxMapSize")? {
+                config.max_map_size = v;
+            }
         }
+        Ok(Nib {
+            nib: NibCore::with_config(config),
+        })
     }
 
     pub fn parse(&mut self, source: String) -> PhpResult<()> {
@@ -71,6 +92,18 @@ impl Nib {
             });
 
         Ok(())
+    }
+}
+
+fn usize_option(options: &ZendHashTable, key: &str) -> Result<Option<usize>, String> {
+    match options.get(key) {
+        None => Ok(None),
+        Some(zval) => zval
+            .long()
+            .filter(|n| *n >= 0)
+            .map(|n| n as usize)
+            .map(Some)
+            .ok_or_else(|| format!("'{}' must be a non-negative int", key)),
     }
 }
 

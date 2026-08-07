@@ -1,5 +1,5 @@
 use js_sys::{Array, Function, Object, Reflect};
-use nib_core::{Nib as NibCore, Value};
+use nib_core::{Config, Nib as NibCore, Value};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 
@@ -10,11 +10,16 @@ pub struct Nib {
 
 #[wasm_bindgen]
 impl Nib {
+    // `options` isn't `Option<T>` because none of wasm-bindgen's numeric ABI
+    // conversions (only i8/u8/i16/u16, not usize/f64) support Option - a
+    // plain JsValue naturally represents an omitted argument as `undefined`
+    // instead, so `new Nib()` and `new Nib({ maxCallDepth: 500 })` both work.
     #[wasm_bindgen(constructor)]
-    pub fn new() -> Nib {
-        Nib {
-            nib: NibCore::new(),
-        }
+    pub fn new(options: JsValue) -> Result<Nib, JsValue> {
+        let config = parse_config(&options)?;
+        Ok(Nib {
+            nib: NibCore::with_config(config),
+        })
     }
 
     pub fn parse(&mut self, source: String) -> Result<(), JsValue> {
@@ -54,6 +59,46 @@ impl Nib {
         self.nib
             .disable_keywords(keywords.iter().map(|k| k.as_str()).collect());
     }
+}
+
+fn parse_config(options: &JsValue) -> Result<Config, JsValue> {
+    let mut config = Config::default();
+    if options.is_undefined() || options.is_null() {
+        return Ok(config);
+    }
+    if let Some(v) = get_config_field(options, "maxCallDepth")? {
+        config.max_call_depth = v;
+    }
+    if let Some(v) = get_config_field(options, "maxParseDepth")? {
+        config.max_parse_depth = v;
+    }
+    if let Some(v) = get_config_field(options, "maxSteps")? {
+        config.max_steps = v;
+    }
+    if let Some(v) = get_config_field(options, "maxStringLength")? {
+        config.max_string_length = v;
+    }
+    if let Some(v) = get_config_field(options, "maxArrayLength")? {
+        config.max_array_length = v;
+    }
+    if let Some(v) = get_config_field(options, "maxMapSize")? {
+        config.max_map_size = v;
+    }
+    Ok(config)
+}
+
+fn get_config_field(options: &JsValue, key: &str) -> Result<Option<usize>, JsValue> {
+    let value = Reflect::get(options, &JsValue::from_str(key))
+        .map_err(|e| JsValue::from_str(&describe_js_error(&e)))?;
+    if value.is_undefined() {
+        return Ok(None);
+    }
+    value
+        .as_f64()
+        .filter(|n| n.is_finite() && *n >= 0.0)
+        .map(|n| n as usize)
+        .map(Some)
+        .ok_or_else(|| JsValue::from_str(&format!("'{}' must be a non-negative number", key)))
 }
 
 fn describe_js_error(err: &JsValue) -> String {

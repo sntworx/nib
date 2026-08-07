@@ -5,30 +5,27 @@ use crate::ast::types::{
 };
 use crate::lexer::{Token, TokenKind};
 
-// Caps recursive-descent nesting so malformed/malicious input can't overflow
-// the real stack while parsing. Much lower than `Interpreter::MAX_CALL_DEPTH`
-// since one grammar level burns several real stack frames here, not one -
-// 128 is verified safe with margin on a constrained 1MiB stack (a small
-// worker-thread stack, not just the CLI's ~8MiB main thread); 1000 was not.
-// Don't raise without re-verifying against a small-stack thread.
-const MAX_PARSE_DEPTH: usize = 128;
-
 pub struct Parser {
     tokens: Vec<Token>,
     pos: usize,
     at_top_level: bool,
     in_loop: bool,
     depth: usize,
+    // Caps recursive-descent nesting so malformed/malicious input can't
+    // overflow the real stack while parsing - see `Config::max_parse_depth`
+    // for the stack-safety rationale behind its default value.
+    max_depth: usize,
 }
 
 impl Parser {
-    pub fn new(tokens: Vec<Token>) -> Self {
+    pub fn new(tokens: Vec<Token>, max_depth: usize) -> Self {
         Parser {
             tokens,
             pos: 0,
             at_top_level: true,
             in_loop: false,
             depth: 0,
+            max_depth,
         }
     }
 
@@ -102,7 +99,7 @@ impl Parser {
     // `depth` back down once its recursive work returns.
     fn enter_nesting(&mut self) -> Result<(), ParseError> {
         self.depth += 1;
-        if self.depth > MAX_PARSE_DEPTH {
+        if self.depth > self.max_depth {
             return Err(self.error("expression or block nested too deeply"));
         }
         Ok(())

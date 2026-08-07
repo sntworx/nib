@@ -31,6 +31,7 @@ The same language also reaches multiple host runtimes: a PHP extension (`binding
   - [What's not there](#whats-not-there)
 - [Workspace layout](#workspace-layout)
 - [Standard library](#standard-library)
+- [Configuration](#configuration)
 - [PHP](#php)
   - [Installation](#installation)
   - [Usage](#usage)
@@ -243,6 +244,19 @@ Three small libraries in [`stdlib/`](stdlib/), written in `nib` itself, on top o
 
 `arrayMap`/`arrayFilter`/`arrayReduce` take a `nib` function by name (e.g. `arrayMap(arr, double)`) — functions are ordinary values, so this needs no closures or special support.
 
+## Configuration
+
+Both host bindings accept an optional config when constructing a `Nib` instance (see the code examples in the [PHP](#php)/[JS/TS](#jsts) usage sections below). Every setting is optional and falls back to its default when omitted; settings are fixed for the lifetime of the instance — there's no way to change them after construction.
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| `maxCallDepth` | `1000` | Caps how deeply `nib` function calls can recurse. Exceeding it fails the script with a normal runtime error (`"stack overflow: exceeded maximum call depth of N"`) instead of overflowing the real native stack and crashing the host process — matters for any script that recurses, whether intentionally or from a bug. |
+| `maxParseDepth` | `128` | Caps how deeply nested a script's expressions/blocks can be while parsing (e.g. deeply nested `((((1))))` grouping, or nested `if`/`while`/`{ }`). Exceeding it fails to parse with `"expression or block nested too deeply"` instead of overflowing the parser's own recursive descent — the default is deliberately much lower than `maxCallDepth` since a single level of syntax nesting burns several real stack frames during parsing, not one, and is verified safe with margin even on a constrained ~1MiB stack (e.g. a small worker thread, not just an ~8MiB main thread). |
+| `maxSteps` | `1000000` | Caps total interpreter work per `run()` call — one "step" per statement executed and per loop iteration (so a non-empty loop body ticks more than once per iteration; this is a work budget, not a precise iteration count). Exceeding it fails with `"exceeded maximum execution steps of N"` instead of letting a script loop forever (e.g. `while true { }`) and hang the host process. Resets to zero at the start of every `run()` call — it's a per-run budget, not a lifetime total on a `Nib` instance reused across multiple scripts. |
+| `maxStringLength` | `1000000` | Caps a single string's length (character count, not byte count), checked wherever a string is built or grows — literals, concatenation (`+`/`+=`), and methods that return a string. Exceeding it fails with `"string exceeds maximum length of N characters"`. |
+| `maxArrayLength` | `1000000` | Caps a single array's element count, checked wherever an array is built or grows — literals, `push()`, and methods that return an array (`chars()`, `keys()`, `values()`). Exceeding it fails with `"array exceeds maximum length of N elements"`. |
+| `maxMapSize` | `1000000` | Caps a single map's entry count, checked whenever a *new* key is inserted — literals and `m[newKey] = x`. Overwriting an existing key never grows the map, so it's never rejected regardless of this limit. Exceeding it fails with `"map exceeds maximum size of N entries"`. |
+
 ## PHP
 
 ### Installation
@@ -276,6 +290,19 @@ $nib->parse('
 ');
 
 $nib->run();
+```
+
+`new Nib()` optionally takes an associative array to override the [config](#configuration) defaults — omit it, or omit either key, to use the defaults:
+
+```php
+$nib = new Nib([
+    "maxCallDepth" => 200,
+    "maxParseDepth" => 32,
+    "maxSteps" => 50000,
+    "maxStringLength" => 10000,
+    "maxArrayLength" => 10000,
+    "maxMapSize" => 10000,
+]);
 ```
 
 `lib/math.nib`:
@@ -341,6 +368,19 @@ func double(x) { return x * 2; }
 ```
 
 `include()` just queues the source and can't fail on its own — no try/catch needed around it. A problem in included code surfaces from `run()` instead (labeled `(in included code)` so it's not confused with a main-script error).
+
+`new Nib()` optionally takes an options object to override the [config](#configuration) defaults — omit it, or omit either key, to use the defaults:
+
+```js
+const nib = new Nib({
+    maxCallDepth: 200,
+    maxParseDepth: 32,
+    maxSteps: 50000,
+    maxStringLength: 10000,
+    maxArrayLength: 10000,
+    maxMapSize: 10000,
+});
+```
 
 Direct browser, no bundler — needs an explicit async init first, and `include()`'s source has to be `fetch()`ed rather than read from disk. Browsers can't resolve a bare specifier like `@sntworx/nib/web` on their own (that's what bundlers/Node do), so map it to a real URL with an import map first:
 
