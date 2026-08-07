@@ -318,9 +318,16 @@ func double(x) { return x * 2; }
 
 `include()` just queues the source and can't fail on its own — no try/catch needed around it. A problem in included code surfaces from `run()` instead (labeled `(in included code)` so it's not confused with a main-script error).
 
-Direct browser, no bundler — needs an explicit async init first, and `include()`'s source has to be `fetch()`ed rather than read from disk:
+Direct browser, no bundler — needs an explicit async init first, and `include()`'s source has to be `fetch()`ed rather than read from disk. Browsers can't resolve a bare specifier like `@sntworx/nib/web` on their own (that's what bundlers/Node do), so map it to a real URL with an import map first:
 
 ```html
+<script type="importmap">
+{
+    "imports": {
+        "@sntworx/nib/web": "https://cdn.jsdelivr.net/npm/@sntworx/nib/pkg/web/nib_ts.js"
+    }
+}
+</script>
 <script type="module">
     import init, { Nib } from "@sntworx/nib/web";
 
