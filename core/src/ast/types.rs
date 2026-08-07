@@ -105,6 +105,13 @@ pub struct ForStmt {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct ForInStmt {
+    pub var_name: String,
+    pub iterable: Expr,
+    pub body: Vec<AstNode>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct MatchArm {
     pub pattern: Expr,
     pub body: Vec<AstNode>,
@@ -127,6 +134,7 @@ pub enum AstNodeKind {
     Return(Option<Expr>),
     While(WhileStmt),
     For(ForStmt),
+    ForIn(ForInStmt),
     Match(MatchStmt),
     Break,
     Continue,

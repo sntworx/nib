@@ -225,6 +225,7 @@ impl Lexer {
             "continue" => Some(TokenKind::Continue),
             "match" => Some(TokenKind::Match),
             "case" => Some(TokenKind::Case),
+            "in" => Some(TokenKind::In),
             _ => None,
         };
 
@@ -403,8 +404,12 @@ impl Lexer {
                 }
             }
             other => {
+                // `{:?}` (not `{}`) so a raw control character in the source
+                // (e.g. a terminal escape byte typed outside a string
+                // literal) shows up as a readable escape like '\u{1b}'
+                // instead of being echoed to the host's terminal as-is.
                 return Err(LexError {
-                    message: format!("unexpected character '{}'", other),
+                    message: format!("unexpected character {:?}", other),
                     line,
                     col,
                 });

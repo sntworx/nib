@@ -90,6 +90,12 @@ for (var i = 0; i < 10; i += 1) {
 ```
 
 ```
+for x in [10, 20, 30] {
+    print(x);
+}
+```
+
+```
 match x {
     case 1 {
         // ...
@@ -103,7 +109,9 @@ match x {
 }
 ```
 
-`if`/`while`/`match` conditions don't need parens; `for`'s three clauses do, and each of them is optional (`for (;;) { }` loops forever). `break`/`continue` are only valid inside a loop.
+`if`/`while`/`match` conditions don't need parens; C-style `for`'s three clauses do, and each of them is optional (`for (;;) { }` loops forever). `for x in arr { }` never has parens — that's how it's told apart from C-style `for`. `break`/`continue` are only valid inside a loop.
+
+`for x in arr` iterates a value-type array by value: `arr` is evaluated once up front (reassigning it mid-loop doesn't change what's iterated), and `x` is a fresh binding each iteration that doesn't alias back into the array. It's array-only for now — no string iteration, no map/dict type.
 
 Each `match` arm is `case` followed by a pattern expression (any expression, not just a literal) and its block; arms are tried top-to-bottom and the first whose pattern equals the subject (same equality as `==`) runs, with no fallthrough. `else` is optional and, if present, must be the last arm.
 

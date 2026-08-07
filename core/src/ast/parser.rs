@@ -1,7 +1,7 @@
 use crate::ast::Ast;
 use crate::ast::types::{
-    AstNode, AstNodeKind, BinaryOp, Expr, ForStmt, FuncDecl, IfStmt, Literal, MatchArm, MatchStmt,
-    ParseError, UnaryOp, VarAssign, WhileStmt,
+    AstNode, AstNodeKind, BinaryOp, Expr, ForInStmt, ForStmt, FuncDecl, IfStmt, Literal, MatchArm,
+    MatchStmt, ParseError, UnaryOp, VarAssign, WhileStmt,
 };
 use crate::lexer::{Token, TokenKind};
 
@@ -139,7 +139,7 @@ impl Parser {
         } else if self.check(&TokenKind::While) {
             AstNodeKind::While(self.while_stmt()?)
         } else if self.check(&TokenKind::For) {
-            AstNodeKind::For(self.for_stmt()?)
+            self.for_stmt()?
         } else if self.check(&TokenKind::Match) {
             AstNodeKind::Match(self.match_stmt()?)
         } else if self.check(&TokenKind::Break) {
@@ -264,8 +264,21 @@ impl Parser {
         })
     }
 
-    fn for_stmt(&mut self) -> Result<ForStmt, ParseError> {
+    // C-style `for (init; cond; post) { }` requires parens (they're the only
+    // thing delimiting the three clauses); `for x in arr { }` never has them,
+    // matching the bare-expression style `if`/`while`/`match` already use -
+    // so which form this is can be told apart with a single-token lookahead
+    // right after `for`, no backtracking needed.
+    fn for_stmt(&mut self) -> Result<AstNodeKind, ParseError> {
         self.expect(&TokenKind::For, "")?;
+        if self.check(&TokenKind::LParen) {
+            Ok(AstNodeKind::For(self.for_clauses_stmt()?))
+        } else {
+            Ok(AstNodeKind::ForIn(self.for_in_stmt()?))
+        }
+    }
+
+    fn for_clauses_stmt(&mut self) -> Result<ForStmt, ParseError> {
         self.expect(&TokenKind::LParen, "after 'for'")?;
 
         let init = if self.match_kind(&TokenKind::Semicolon) {
@@ -304,6 +317,24 @@ impl Parser {
             init,
             condition,
             post,
+            body: body?,
+        })
+    }
+
+    fn for_in_stmt(&mut self) -> Result<ForInStmt, ParseError> {
+        let var_name = self.expect_ident("after 'for'")?;
+        self.expect(&TokenKind::In, "after loop variable")?;
+        // iterable is a bare expression, same style as if/while/match
+        let iterable = self.expression()?;
+
+        let saved_in_loop = self.in_loop;
+        self.in_loop = true;
+        let body = self.block();
+        self.in_loop = saved_in_loop;
+
+        Ok(ForInStmt {
+            var_name,
+            iterable,
             body: body?,
         })
     }

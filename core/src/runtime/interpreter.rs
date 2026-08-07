@@ -2,8 +2,8 @@ use std::rc::Rc;
 
 use crate::ast::Ast;
 use crate::ast::types::{
-    AstNode, AstNodeKind, BinaryOp, Expr, ForStmt, FuncDecl, IfStmt, Literal, MatchStmt, UnaryOp,
-    VarAssign, WhileStmt,
+    AstNode, AstNodeKind, BinaryOp, Expr, ForInStmt, ForStmt, FuncDecl, IfStmt, Literal, MatchStmt,
+    UnaryOp, VarAssign, WhileStmt,
 };
 use crate::runtime::environment::Environment;
 use crate::runtime::helpers::{as_f64, checked_float, values_equal};
@@ -103,6 +103,7 @@ impl Interpreter {
             }
             AstNodeKind::While(while_stmt) => self.exec_while(while_stmt),
             AstNodeKind::For(for_stmt) => self.exec_for(for_stmt),
+            AstNodeKind::ForIn(for_in_stmt) => self.exec_for_in(for_in_stmt),
             AstNodeKind::Match(match_stmt) => self.exec_match(match_stmt),
             AstNodeKind::Break => Ok(Flow::Break),
             AstNodeKind::Continue => Ok(Flow::Continue),
@@ -116,7 +117,10 @@ impl Interpreter {
                 Some(else_branch) => self.exec_block(else_branch),
                 None => Ok(Flow::Normal),
             },
-            other => Err(self.error(format!("if condition must be a bool, got {}", other))),
+            other => Err(self.error(format!(
+                "if condition must be a bool, got {}",
+                other.type_name()
+            ))),
         }
     }
 
@@ -143,9 +147,10 @@ impl Interpreter {
                 Value::Bool(true) => {}
                 Value::Bool(false) => return Ok(Flow::Normal),
                 other => {
-                    return Err(
-                        self.error(format!("while condition must be a bool, got {}", other))
-                    );
+                    return Err(self.error(format!(
+                        "while condition must be a bool, got {}",
+                        other.type_name()
+                    )));
                 }
             }
             match self.exec_block(&while_stmt.body)? {
@@ -175,9 +180,10 @@ impl Interpreter {
                 Some(condition) => match self.eval(condition)? {
                     Value::Bool(b) => b,
                     other => {
-                        return Err(
-                            self.error(format!("for condition must be a bool, got {}", other))
-                        );
+                        return Err(self.error(format!(
+                            "for condition must be a bool, got {}",
+                            other.type_name()
+                        )));
                     }
                 },
                 None => true,
@@ -196,6 +202,35 @@ impl Interpreter {
                 self.eval(post)?;
             }
         }
+    }
+
+    // `iterable` is evaluated once up front, like a `for` loop's condition
+    // is checked fresh each time but the collection itself isn't - so
+    // reassigning the source variable mid-loop doesn't change what's being
+    // iterated. Since arrays are a value type (see the arrays section),
+    // iterating hands each element to the loop body by value too: mutating
+    // the loop variable never writes back into the array.
+    fn exec_for_in(&mut self, for_in_stmt: &ForInStmt) -> Result<Flow, RuntimeError> {
+        let iterable = self.eval(&for_in_stmt.iterable)?;
+        let items = match iterable {
+            Value::Array(items) => items,
+            other => {
+                return Err(self.error(format!("cannot iterate over {}", other.type_name())));
+            }
+        };
+
+        for item in items {
+            self.env.push_scope();
+            self.env.define(for_in_stmt.var_name.clone(), item);
+            let flow = self.exec_all(&for_in_stmt.body);
+            self.env.pop_scope();
+            match flow? {
+                Flow::Normal | Flow::Continue => {}
+                Flow::Break => return Ok(Flow::Normal),
+                flow @ Flow::Return(_) => return Ok(flow),
+            }
+        }
+        Ok(Flow::Normal)
     }
 
     fn exec_block(&mut self, nodes: &[AstNode]) -> Result<Flow, RuntimeError> {
@@ -265,7 +300,10 @@ impl Interpreter {
             (UnaryOp::Neg, Value::Int(v)) => Ok(Value::Int(-v)),
             (UnaryOp::Neg, Value::Float(v)) => Ok(Value::Float(-v)),
             (UnaryOp::Not, Value::Bool(v)) => Ok(Value::Bool(!v)),
-            _ => Err(self.error(format!("unary operator cannot be applied to {}", value))),
+            _ => Err(self.error(format!(
+                "unary operator cannot be applied to {}",
+                value.type_name()
+            ))),
         }
     }
 
@@ -279,14 +317,20 @@ impl Interpreter {
         if matches!(op, BinaryOp::And | BinaryOp::Or) {
             let left_bool = match self.eval(left)? {
                 Value::Bool(b) => b,
-                other => return Err(self.error(format!("expected bool operand, got {}", other))),
+                other => {
+                    return Err(
+                        self.error(format!("expected bool operand, got {}", other.type_name()))
+                    );
+                }
             };
             return match (op, left_bool) {
                 (BinaryOp::And, false) => Ok(Value::Bool(false)),
                 (BinaryOp::Or, true) => Ok(Value::Bool(true)),
                 _ => match self.eval(right)? {
                     Value::Bool(b) => Ok(Value::Bool(b)),
-                    other => Err(self.error(format!("expected bool operand, got {}", other))),
+                    other => {
+                        Err(self.error(format!("expected bool operand, got {}", other.type_name())))
+                    }
                 },
             };
         }
@@ -373,7 +417,11 @@ impl Interpreter {
                 result.map_err(|msg| self.error(msg))
             }
 
-            (_, a, b) => Err(self.error(format!("operator cannot be applied to {} and {}", a, b))),
+            (_, a, b) => Err(self.error(format!(
+                "operator cannot be applied to {} and {}",
+                a.type_name(),
+                b.type_name()
+            ))),
         }
     }
 
@@ -383,13 +431,16 @@ impl Interpreter {
 
         let items = match object_val {
             Value::Array(items) => items,
-            other => return Err(self.error(format!("cannot index into {}", other))),
+            other => return Err(self.error(format!("cannot index into {}", other.type_name()))),
         };
 
         let idx = match index_val {
             Value::Int(i) => i,
             other => {
-                return Err(self.error(format!("array index must be an integer, got {}", other)));
+                return Err(self.error(format!(
+                    "array index must be an integer, got {}",
+                    other.type_name()
+                )));
             }
         };
 
@@ -407,7 +458,10 @@ impl Interpreter {
     fn eval_index_value(&mut self, index: &Expr) -> Result<i64, RuntimeError> {
         match self.eval(index)? {
             Value::Int(i) => Ok(i),
-            other => Err(self.error(format!("array index must be an integer, got {}", other))),
+            other => Err(self.error(format!(
+                "array index must be an integer, got {}",
+                other.type_name()
+            ))),
         }
     }
 
@@ -436,7 +490,7 @@ impl Interpreter {
                 items[idx as usize] = new_elem;
                 Ok(array)
             }
-            other => Err(self.error(format!("cannot index into {}", other))),
+            other => Err(self.error(format!("cannot index into {}", other.type_name()))),
         }
     }
 
@@ -474,7 +528,7 @@ impl Interpreter {
 
         let items = match &current_array {
             Value::Array(items) => items,
-            other => return Err(self.error(format!("cannot index into {}", other))),
+            other => return Err(self.error(format!("cannot index into {}", other.type_name()))),
         };
         if idx < 0 || idx as usize >= items.len() {
             return Err(self.error(format!(
@@ -533,7 +587,7 @@ impl Interpreter {
                     .collect::<Result<Vec<_>, _>>()?;
                 (native.func)(&arg_values).map_err(|msg| self.error(msg))
             }
-            other => Err(self.error(format!("cannot call {}", other))),
+            other => Err(self.error(format!("cannot call {}", other.type_name()))),
         }
     }
 

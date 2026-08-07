@@ -38,6 +38,30 @@ pub enum Value {
     Null,
 }
 
+impl Value {
+    // Used in "wrong type" runtime error messages instead of the value's own
+    // Display - a script-controlled `Str`/`Array` can contain arbitrary raw
+    // bytes (there's no escaping in `Display`, since it's also what backs
+    // deliberate string output like `+`'s stringification and a host's
+    // `print`), and those error messages get written straight to the host's
+    // terminal/log with no sanitization anywhere in the pipeline. Reporting
+    // the type instead of the value avoids ever echoing attacker-controlled
+    // content (e.g. terminal escape sequences) through a diagnostic path the
+    // script didn't explicitly ask to print through.
+    pub(crate) fn type_name(&self) -> &'static str {
+        match self {
+            Value::Int(_) => "int",
+            Value::Float(_) => "float",
+            Value::Str(_) => "string",
+            Value::Bool(_) => "bool",
+            Value::Array(_) => "array",
+            Value::Function(_) => "function",
+            Value::NativeFunction(_) => "native function",
+            Value::Null => "null",
+        }
+    }
+}
+
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
