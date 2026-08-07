@@ -4,13 +4,13 @@
 
 > **Active development.** APIs, syntax, and behavior may change without notice. Not recommended for production use yet.
 
-### What's nib
+## What's nib
 
 `nib` is a small custom scripting language written in Rust, meant to be embedded inside a host application rather than run standalone. C-like syntax (`var`, `if`/`else`, `while`, `for`, top-level `func`s with no closures, arrays, etc.).
 
-It has no standard library and nothing pre-bound by default: the host decides exactly which native functions a script is allowed to call (`register_func`), and can even strip specific keywords out of the language for a given script (`disable_keywords`) — e.g. dropping `while`/`for` to rule out unbounded loops. That opt-in-only surface makes it a fit for running untrusted or user-authored logic inside a larger app: plugin scripting, rules/workflow engines, user-defined formulas, that kind of thing — where you want scripts to only ever touch what you explicitly exposed.
+Nothing is pre-bound by default: the host decides exactly which native functions a script is allowed to call (`register_func`), and can even strip specific keywords out of the language for a given script (`disable_keywords`) — e.g. dropping `while`/`for` to rule out unbounded loops. That opt-in-only surface makes it a fit for running untrusted or user-authored logic inside a larger app: plugin scripting, rules/workflow engines, user-defined formulas, that kind of thing — where you want scripts to only ever touch what you explicitly exposed.
 
-For shared logic that's easier to write in `nib` itself than as native Rust/PHP/JS functions, a host can also `include()` its own nib-authored library code (or a prepared one, if/when one ships) before running the main script — top-level `func`s from an include land in the same global scope the main script runs in, so it can call them directly. This is separate from `register_func`: it doesn't need the host to touch its own language at all, and included code stays subject to the same "no closures, top-level `func` only" rules as any other `nib` script. `include()` itself can't fail — it just queues the source — so a host never needs error handling around the call; parsing and running happen together inside `run()`, so any problem with included code (or the main script) surfaces from that one call.
+For shared logic that's easier to write in `nib` itself than as native Rust/PHP/JS functions, a host can also `include()` its own nib-authored library code — or the prepared `array`/`string`/`math` libraries in [`stdlib/`](stdlib/) — before running the main script; top-level `func`s from an include land in the same global scope the main script runs in, so it can call them directly. This is separate from `register_func`: it doesn't need the host to touch its own language at all, and included code stays subject to the same "no closures, top-level `func` only" rules as any other `nib` script. `include()` itself can't fail — it just queues the source — so a host never needs error handling around the call; parsing and running happen together inside `run()`, so any problem with included code (or the main script) surfaces from that one call.
 
 The same language also reaches multiple host runtimes: a PHP extension (`bindings-php`) and TypeScript/WebAssembly bindings (`bindings-ts`) sit on top of the same core interpreter, so identical `nib` scripts and host-defined behavior can run in a PHP backend and a browser/Node frontend alike.
 
@@ -21,14 +21,15 @@ The same language also reaches multiple host runtimes: a PHP extension (`binding
   - [Comments](#comments)
   - [Literals](#literals)
   - [Variables & assignment](#variables--assignment)
+  - [Operators](#operators)
   - [Control flow](#control-flow)
   - [Functions](#functions)
   - [Arrays](#arrays)
   - [Strings](#strings)
   - [Numbers](#numbers)
-  - [Operators](#operators)
   - [What's not there](#whats-not-there)
 - [Workspace layout](#workspace-layout)
+- [Standard library](#standard-library)
 - [PHP](#php)
   - [Installation](#installation)
   - [Usage](#usage)
@@ -37,9 +38,9 @@ The same language also reaches multiple host runtimes: a PHP extension (`binding
   - [Usage](#usage-1)
 - [License](#license)
 
-### Syntax
+## Syntax
 
-#### Comments
+### Comments
 
 ```
 // line comments
@@ -48,7 +49,7 @@ The same language also reaches multiple host runtimes: a PHP extension (`binding
    block comments */
 ```
 
-#### Literals
+### Literals
 
 ```
 var i = 42;
@@ -59,7 +60,7 @@ var n = null;
 var a = [1, 2, 3];
 ```
 
-#### Variables & assignment
+### Variables & assignment
 
 ```
 var x = 1;
@@ -68,7 +69,18 @@ x += 3;   // also -= *= /= %=
 x++;      // also x-- and prefix ++x/--x
 ```
 
-#### Control flow
+### Operators
+
+```
+1 + 2 * 3;
+7 % 3;               // remainder, sign follows the dividend (like C/JS, not Python)
+(1 + 2) * 3;         // parens are just a grouping expression
+"count: " + 5;       // + also stringifies numbers for concatenation
+a == b && c != d;    // && and || short-circuit
+!done || -x <= 0;    // unary ! and -
+```
+
+### Control flow
 
 ```
 if x > 1 {
@@ -121,7 +133,7 @@ Each `match` arm is `case` followed by a pattern expression (any expression, not
 
 A bare `{ ... }` also works as its own statement — its own scope, not attached to any `if`/`while`/`for`/`func`/`match`.
 
-#### Functions
+### Functions
 
 ```
 func add(a, b) {
@@ -137,7 +149,7 @@ func noop() {
 
 Functions are **top-level only** (no nested `func`) and have **no closures** — a function only ever sees globals plus its own params/locals, never the caller's.
 
-#### Arrays
+### Arrays
 
 ```
 var matrix = [[1, 2], [3, 4]];
@@ -156,7 +168,7 @@ arr.len();        // -> 3
 
 `.method()` is a small, fixed set of built-in pseudo-methods on arrays and strings — not general member access or user-extensible dispatch. `push`/`pop` write their result back to wherever the receiver came from (a variable or a nested index, e.g. `matrix[0].push(x)`), same as `arr[i] = x` does; calling one on something that isn't a variable or index (like a bare function call's return value) fails the same way index-assignment into a temporary already does.
 
-#### Strings
+### Strings
 
 ```
 var s = "  Hello World  ";
@@ -175,7 +187,7 @@ for c in "abc".chars() {
 "abc".chars()[1];  // -> "b"
 ```
 
-#### Numbers
+### Numbers
 
 ```
 (3.7).floor();   // -> 3
@@ -185,26 +197,27 @@ for c in "abc".chars() {
 
 `floor`/`ceil`/`round` are `Float`-only and return an `Int` (not a `Float`) — the usual reason to want this conversion is to use the result as an array index, which needs a real `Int`. `Int` has no such methods (nothing to convert). Watch operator precedence: unary `-` binds looser than `.method()`, so `-3.7.floor()` means `-(3.7.floor())` (`-3`), not `(-3.7).floor()` (`-4`) — parenthesize the receiver if the sign needs to apply first.
 
-#### Operators
+### What's not there
 
-```
-1 + 2 * 3;
-7 % 3;               // remainder, sign follows the dividend (like C/JS, not Python)
-(1 + 2) * 3;         // parens are just a grouping expression
-"count: " + 5;       // + also stringifies numbers for concatenation
-a == b && c != d;    // && and || short-circuit
-!done || -x <= 0;    // unary ! and -
-```
+Nothing pre-bound by default (the host opts scripts into native functions via `register_func`, or into the `stdlib/` libraries via `include()`, see above), no closures, no general `.` member access (only the fixed set of array/string pseudo-methods above). `++`/`--` (either prefix or postfix) only work as a whole statement, e.g. `x++;` or a `for` loop's clauses — not embeddable mid-expression like `1 + x++`.
 
-#### What's not there
+## Workspace layout
 
-No standard library/builtins by default (the host opts scripts into native functions via `register_func`, see above), no closures, no general `.` member access (only the fixed set of array/string pseudo-methods above). `++`/`--` (either prefix or postfix) only work as a whole statement, e.g. `x++;` or a `for` loop's clauses — not embeddable mid-expression like `1 + x++`.
-
-### Workspace layout
 - `core/` — the language implementation (package `nib_core`): lexer, parser, interpreter.
 - `nib/` — a CLI that runs `.nib` scripts, or prints their parsed AST.
 - `bindings-php/` — a PHP extension (via `ext-php-rs`) exposing `nib` as a `Nib` class.
 - `bindings-ts/` — TypeScript/WebAssembly bindings (via `wasm-bindgen`), published as the `@sntworx/nib` npm package.
+- `stdlib/` — prepared libraries written in `nib` itself (`array.nib`, `string.nib`, `math.nib`), meant to be loaded with `include()` — see below.
+
+## Standard library
+
+Three small libraries in [`stdlib/`](stdlib/), written in `nib` itself, on top of the built-in Array/String/Float methods above. Not pre-bound — load whichever files you need with `include()`. Flat function names, no namespacing (see "What's not there" above), so this is exactly what a host or user could write and `include()` themselves.
+
+- **`stdlib/array.nib`**: `arrayContains(arr, value)`, `arrayIndexOf(arr, value)`, `arrayJoin(arr, sep)`, `arrayReverse(arr)`, `arraySlice(arr, start, end)`, `arraySum(arr)`, `arrayMin(arr)`, `arrayMax(arr)`, `arrayMap(arr, fn)`, `arrayFilter(arr, fn)`, `arrayReduce(arr, fn, initial)`.
+- **`stdlib/string.nib`**: `stringIndexOf(s, needle)`, `stringContains(s, needle)`, `stringStartsWith(s, prefix)`, `stringEndsWith(s, suffix)`, `stringSlice(s, start, end)`, `stringRepeat(s, count)`, `stringSplit(s, sep)`, `stringReplace(s, search, replacement)`.
+- **`stdlib/math.nib`**: `mathAbs(x)`, `mathMin(a, b)`, `mathMax(a, b)`, `mathClamp(x, lo, hi)`, `mathPow(base, exponent)` — integer exponents; a negative exponent returns a `Float`.
+
+`arrayMap`/`arrayFilter`/`arrayReduce` take a `nib` function by name (e.g. `arrayMap(arr, double)`) — functions are ordinary values, so this needs no closures or special support.
 
 ## PHP
 
@@ -231,9 +244,7 @@ $nib->registerFunc("print", function (...$args) {
 
 $nib->disableKeywords(["while"]); // optional: restrict the language surface
 
-$nib->include('
-    func double(x) { return x * 2; }
-');
+$nib->include(file_get_contents(__DIR__ . "/lib/math.nib"));
 
 $nib->parse('
     var x = 1 + 2;
@@ -241,6 +252,12 @@ $nib->parse('
 ');
 
 $nib->run();
+```
+
+`lib/math.nib`:
+
+```
+func double(x) { return x * 2; }
 ```
 
 `include()` just queues the source and can't fail on its own — no try/catch needed around it. `parse()` and `run()` throw on error (a bad script raises a PHP exception rather than returning an error code), so wrap them in `try`/`catch` when running untrusted scripts. `run()` is also where a problem in included code would surface (labeled `(in included code)` so it's not confused with a main-script error):
@@ -271,6 +288,7 @@ Works out of the box in Node (CommonJS `require` or ESM `import`) and via bundle
 Node or a bundler (auto-initializes, no manual setup step):
 
 ```js
+import { readFileSync } from "node:fs";
 import { Nib } from "@sntworx/nib";
 // or: const { Nib } = require("@sntworx/nib");
 
@@ -282,9 +300,7 @@ nib.registerFunc("print", (...args) => {
 
 nib.disableKeywords(["while"]); // optional: restrict the language surface
 
-nib.include(`
-    func double(x) { return x * 2; }
-`);
+nib.include(readFileSync("./lib/math.nib", "utf8"));
 
 nib.parse(`
     var x = 1 + 2;
@@ -294,9 +310,15 @@ nib.parse(`
 nib.run();
 ```
 
+`lib/math.nib`:
+
+```
+func double(x) { return x * 2; }
+```
+
 `include()` just queues the source and can't fail on its own — no try/catch needed around it. A problem in included code surfaces from `run()` instead (labeled `(in included code)` so it's not confused with a main-script error).
 
-Direct browser, no bundler — needs an explicit async init first:
+Direct browser, no bundler — needs an explicit async init first, and `include()`'s source has to be `fetch()`ed rather than read from disk:
 
 ```html
 <script type="module">
@@ -306,7 +328,8 @@ Direct browser, no bundler — needs an explicit async init first:
 
     const nib = new Nib();
     nib.registerFunc("print", (...args) => console.log(...args));
-    nib.parse('print("hello from the browser");');
+    nib.include(await (await fetch("./lib/math.nib")).text());
+    nib.parse('print("x =", double(2));');
     nib.run();
 </script>
 ```
