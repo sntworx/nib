@@ -22,6 +22,8 @@ The same language also reaches multiple host runtimes: a PHP extension (`binding
   - [Control flow](#control-flow)
   - [Functions](#functions)
   - [Arrays](#arrays)
+  - [Strings](#strings)
+  - [Numbers](#numbers)
   - [Operators](#operators)
   - [What's not there](#whats-not-there)
 - [Workspace layout](#workspace-layout)
@@ -143,6 +145,44 @@ matrix[0][1] += 1;
 
 Arrays are a value type: `var b = a; b[0] = 1;` does **not** change `a`, unlike JS/Python/Ruby.
 
+```
+var arr = [1, 2, 3];
+arr.push(4);      // -> [1, 2, 3, 4], and writes it back to `arr`
+var last = arr.pop();  // -> 4, and writes the shrunk array back to `arr`
+arr.len();        // -> 3
+```
+
+`.method()` is a small, fixed set of built-in pseudo-methods on arrays and strings — not general member access or user-extensible dispatch. `push`/`pop` write their result back to wherever the receiver came from (a variable or a nested index, e.g. `matrix[0].push(x)`), same as `arr[i] = x` does; calling one on something that isn't a variable or index (like a bare function call's return value) fails the same way index-assignment into a temporary already does.
+
+#### Strings
+
+```
+var s = "  Hello World  ";
+s.trim();       // -> "Hello World"
+s.trim().upper();  // -> "HELLO WORLD"
+s.trim().lower();  // -> "hello world"
+s.len();        // -> 15 (character count, not byte count)
+```
+
+Strings have no `.` for growing them — use `+` (`s = s + "!";`), same as always. There's also no direct indexing (`s[0]`) or iteration (`for c in s`); instead, `.chars()` splits a string into an `Array` of single-character strings, which already has both:
+
+```
+for c in "abc".chars() {
+    print(c);
+}
+"abc".chars()[1];  // -> "b"
+```
+
+#### Numbers
+
+```
+(3.7).floor();   // -> 3
+(3.2).ceil();    // -> 4
+(3.5).round();   // -> 4
+```
+
+`floor`/`ceil`/`round` are `Float`-only and return an `Int` (not a `Float`) — the usual reason to want this conversion is to use the result as an array index, which needs a real `Int`. `Int` has no such methods (nothing to convert). Watch operator precedence: unary `-` binds looser than `.method()`, so `-3.7.floor()` means `-(3.7.floor())` (`-3`), not `(-3.7).floor()` (`-4`) — parenthesize the receiver if the sign needs to apply first.
+
 #### Operators
 
 ```
@@ -156,7 +196,7 @@ a == b && c != d;    // && and || short-circuit
 
 #### What's not there
 
-No standard library/builtins by default (the host opts scripts into native functions via `register_func`, see above), no closures, no `.` member access. `++`/`--` (either prefix or postfix) only work as a whole statement, e.g. `x++;` or a `for` loop's clauses — not embeddable mid-expression like `1 + x++`.
+No standard library/builtins by default (the host opts scripts into native functions via `register_func`, see above), no closures, no general `.` member access (only the fixed set of array/string pseudo-methods above). `++`/`--` (either prefix or postfix) only work as a whole statement, e.g. `x++;` or a `for` loop's clauses — not embeddable mid-expression like `1 + x++`.
 
 ### Workspace layout
 - `core/` — the language implementation (package `nib_core`): lexer, parser, interpreter.

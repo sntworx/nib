@@ -27,3 +27,22 @@ pub fn checked_float(result: f64) -> Result<Value, String> {
         Err("floating-point overflow".to_string())
     }
 }
+
+// Rust's `f64 as i64` cast *saturates* on out-of-range values rather than
+// erroring, unlike every other numeric conversion in this interpreter
+// (`checked_add`, `checked_div`, `checked_float`) - used by `Float`'s
+// `floor`/`ceil`/`round` pseudo-methods so an out-of-range float errors
+// instead of silently handing back a wrong-but-plausible `i64`.
+pub fn checked_i64_from_f64(f: f64) -> Result<i64, String> {
+    // 2^63 is the exclusive upper edge of i64's range and is exactly
+    // representable in f64; `i64::MAX as f64` rounds *up* to this same
+    // value (f64 can't represent i64::MAX exactly), so comparing against
+    // the literal power of two avoids relying on that rounding coincidence.
+    const I64_MIN_F64: f64 = -9223372036854775808.0;
+    const I64_MAX_EXCLUSIVE_F64: f64 = 9223372036854775808.0;
+    if (I64_MIN_F64..I64_MAX_EXCLUSIVE_F64).contains(&f) {
+        Ok(f as i64)
+    } else {
+        Err(format!("{} is out of range for int conversion", f))
+    }
+}

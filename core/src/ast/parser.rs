@@ -642,20 +642,28 @@ impl Parser {
         result
     }
 
+    // Parses `(arg, arg, ...)` up to and including the closing `)` - shared
+    // by call and method-call parsing, which both need the same possibly-
+    // empty, comma-separated argument list.
+    fn call_args(&mut self, context: &str) -> Result<Vec<Expr>, ParseError> {
+        let mut args = Vec::new();
+        if !self.check(&TokenKind::RParen) {
+            loop {
+                args.push(self.expression()?);
+                if !self.match_kind(&TokenKind::Comma) {
+                    break;
+                }
+            }
+        }
+        self.expect(&TokenKind::RParen, context)?;
+        Ok(args)
+    }
+
     fn postfix(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.primary()?;
         loop {
             if self.match_kind(&TokenKind::LParen) {
-                let mut args = Vec::new();
-                if !self.check(&TokenKind::RParen) {
-                    loop {
-                        args.push(self.expression()?);
-                        if !self.match_kind(&TokenKind::Comma) {
-                            break;
-                        }
-                    }
-                }
-                self.expect(&TokenKind::RParen, "after call arguments")?;
+                let args = self.call_args("after call arguments")?;
                 expr = Expr::Call {
                     callee: Box::new(expr),
                     args,
@@ -666,6 +674,15 @@ impl Parser {
                 expr = Expr::Index {
                     object: Box::new(expr),
                     index: Box::new(index),
+                };
+            } else if self.match_kind(&TokenKind::Dot) {
+                let method = self.expect_ident("after '.'")?;
+                self.expect(&TokenKind::LParen, "after method name")?;
+                let args = self.call_args("after method arguments")?;
+                expr = Expr::MethodCall {
+                    target: Box::new(expr),
+                    method,
+                    args,
                 };
             } else {
                 break;

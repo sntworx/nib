@@ -68,6 +68,14 @@ pub enum Expr {
     },
     Array(Vec<Expr>),
     Grouping(Box<Expr>),
+    // `target.method(args)` - a closed, interpreter-known set of pseudo-
+    // methods on built-in types (see `Value::call_method`), not general
+    // member access or user-extensible dispatch. `.` is otherwise unused.
+    MethodCall {
+        target: Box<Expr>,
+        method: String,
+        args: Vec<Expr>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -7,7 +7,7 @@ use crate::ast::types::{
 };
 use crate::runtime::environment::Environment;
 use crate::runtime::helpers::{as_f64, checked_float, values_equal};
-use crate::runtime::types::{Function, NativeFunction, RuntimeError, Value};
+use crate::runtime::types::{Function, MethodResult, NativeFunction, RuntimeError, Value};
 
 enum Flow {
     Normal,
@@ -291,6 +291,11 @@ impl Interpreter {
                 Ok(Value::Array(values))
             }
             Expr::Grouping(inner) => self.eval(inner),
+            Expr::MethodCall {
+                target,
+                method,
+                args,
+            } => self.eval_method_call(target, method, args),
         }
     }
 
@@ -553,6 +558,38 @@ impl Interpreter {
 
         self.assign_to_target(object, patched)?;
         Ok(new_elem)
+    }
+
+    // `target.method(args)` dispatches through `Value::call_method` (see its
+    // doc comment for the Pure/Mutating split). Mutating methods reuse
+    // `assign_to_target` to write the receiver's new state back to wherever
+    // it came from - so `arr.push(1)` on a plain variable or nested index
+    // works, but calling one on a non-lvalue (e.g. `getArr().push(1)`) fails
+    // with the same "invalid assignment target" error index-assignment
+    // already gives for the equivalent case.
+    fn eval_method_call(
+        &mut self,
+        target: &Expr,
+        method: &str,
+        args: &[Expr],
+    ) -> Result<Value, RuntimeError> {
+        let mut receiver = self.eval(target)?;
+        let arg_values = args
+            .iter()
+            .map(|arg| self.eval(arg))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let result = receiver
+            .call_method(method, &arg_values)
+            .map_err(|msg| self.error(msg))?;
+
+        match result {
+            MethodResult::Pure(value) => Ok(value),
+            MethodResult::Mutating(value) => {
+                self.assign_to_target(target, receiver)?;
+                Ok(value)
+            }
+        }
     }
 
     fn eval_call(&mut self, callee: &Expr, args: &[Expr]) -> Result<Value, RuntimeError> {
