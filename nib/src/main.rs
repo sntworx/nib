@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::time::Instant;
 
 use clap::Parser;
 use nib_core::{Nib, Value};
@@ -13,6 +14,14 @@ struct Cli {
     /// Print the parsed AST instead of running the script, optionally saving it to FILE
     #[arg(long, num_args = 0..=1, default_missing_value = "-", value_name = "FILE")]
     ast: Option<PathBuf>,
+
+    /// Library file(s) to include before the script, comma-separated
+    #[arg(long, value_delimiter = ',', value_name = "FILE")]
+    include: Vec<PathBuf>,
+
+    /// Measure and print script execution time
+    #[arg(long)]
+    time: bool,
 }
 
 fn main() -> ExitCode {
@@ -38,6 +47,17 @@ fn main() -> ExitCode {
         Ok(Value::Null)
     });
 
+    for path in &cli.include {
+        let include_source = match fs::read_to_string(path) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("failed to read include '{}': {}", path.display(), e);
+                return ExitCode::FAILURE;
+            }
+        };
+        nib.include(include_source);
+    }
+
     if let Err(e) = nib.parse(&source) {
         eprintln!("{}", e);
         return ExitCode::FAILURE;
@@ -45,9 +65,17 @@ fn main() -> ExitCode {
 
     match cli.ast {
         None => {
-            if let Err(e) = nib.run() {
+            let start = Instant::now();
+            let result = nib.run();
+            let elapsed = start.elapsed();
+
+            if let Err(e) = result {
                 eprintln!("{}", e);
                 return ExitCode::FAILURE;
+            }
+
+            if cli.time {
+                println!("Execution time: {:.3?}", elapsed);
             }
         }
         Some(path) if path == PathBuf::from("-") => {
