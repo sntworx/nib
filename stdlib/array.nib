@@ -1,0 +1,106 @@
+func arrayContains(arr, value) {
+    for item in arr {
+        if item == value {
+            return true;
+        }
+    }
+    return false;
+}
+
+func arrayIndexOf(arr, value) {
+    var i = 0;
+    for item in arr {
+        if item == value {
+            return i;
+        }
+        i = i + 1;
+    }
+    return -1;
+}
+
+func arrayJoin(arr, sep) {
+    var result = "";
+    var i = 0;
+    for item in arr {
+        if i > 0 {
+            result = result + sep;
+        }
+        result = result + item;
+        i = i + 1;
+    }
+    return result;
+}
+
+func arrayReverse(arr) {
+    var result = [];
+    var i = arr.len() - 1;
+    while i >= 0 {
+        result.push(arr[i]);
+        i = i - 1;
+    }
+    return result;
+}
+
+func arraySlice(arr, start, end) {
+    var result = [];
+    var i = start;
+    while i < end {
+        result.push(arr[i]);
+        i = i + 1;
+    }
+    return result;
+}
+
+func arraySum(arr) {
+    var total = 0;
+    for item in arr {
+        total = total + item;
+    }
+    return total;
+}
+
+func arrayMin(arr) {
+    var m = arr[0];
+    for item in arr {
+        if item < m {
+            m = item;
+        }
+    }
+    return m;
+}
+
+func arrayMax(arr) {
+    var m = arr[0];
+    for item in arr {
+        if item > m {
+            m = item;
+        }
+    }
+    return m;
+}
+
+func arrayMap(arr, fn) {
+    var result = [];
+    for item in arr {
+        result.push(fn(item));
+    }
+    return result;
+}
+
+func arrayFilter(arr, fn) {
+    var result = [];
+    for item in arr {
+        if fn(item) {
+            result.push(item);
+        }
+    }
+    return result;
+}
+
+func arrayReduce(arr, fn, initial) {
+    var acc = initial;
+    for item in arr {
+        acc = fn(acc, item);
+    }
+    return acc;
+}

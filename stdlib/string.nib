@@ -1,0 +1,116 @@
+func _charsMatchAt(haystack, needle, at) {
+    var nLen = needle.len();
+    if at + nLen > haystack.len() {
+        return false;
+    }
+    var j = 0;
+    while j < nLen {
+        if haystack[at + j] != needle[j] {
+            return false;
+        }
+        j = j + 1;
+    }
+    return true;
+}
+
+func stringIndexOf(s, needle) {
+    var sChars = s.chars();
+    var nChars = needle.chars();
+    var nLen = nChars.len();
+    if nLen == 0 {
+        return 0;
+    }
+    var i = 0;
+    while i <= sChars.len() - nLen {
+        if _charsMatchAt(sChars, nChars, i) {
+            return i;
+        }
+        i = i + 1;
+    }
+    return -1;
+}
+
+func stringContains(s, needle) {
+    return stringIndexOf(s, needle) >= 0;
+}
+
+func stringStartsWith(s, prefix) {
+    return _charsMatchAt(s.chars(), prefix.chars(), 0);
+}
+
+func stringEndsWith(s, suffix) {
+    var sChars = s.chars();
+    var suChars = suffix.chars();
+    if suChars.len() > sChars.len() {
+        return false;
+    }
+    return _charsMatchAt(sChars, suChars, sChars.len() - suChars.len());
+}
+
+func stringSlice(s, start, end) {
+    var chars = s.chars();
+    var result = "";
+    var i = start;
+    while i < end {
+        result = result + chars[i];
+        i = i + 1;
+    }
+    return result;
+}
+
+func stringRepeat(s, count) {
+    var result = "";
+    var i = 0;
+    while i < count {
+        result = result + s;
+        i = i + 1;
+    }
+    return result;
+}
+
+func stringSplit(s, sep) {
+    var sChars = s.chars();
+    var sepChars = sep.chars();
+    var sepLen = sepChars.len();
+    var sLen = sChars.len();
+    if sepLen == 0 {
+        return sChars;
+    }
+    var result = [];
+    var current = "";
+    var i = 0;
+    while i < sLen {
+        if _charsMatchAt(sChars, sepChars, i) {
+            result.push(current);
+            current = "";
+            i = i + sepLen;
+        } else {
+            current = current + sChars[i];
+            i = i + 1;
+        }
+    }
+    result.push(current);
+    return result;
+}
+
+func stringReplace(s, search, replacement) {
+    var sChars = s.chars();
+    var seChars = search.chars();
+    var seLen = seChars.len();
+    var sLen = sChars.len();
+    if seLen == 0 {
+        return s;
+    }
+    var result = "";
+    var i = 0;
+    while i < sLen {
+        if _charsMatchAt(sChars, seChars, i) {
+            result = result + replacement;
+            i = i + seLen;
+        } else {
+            result = result + sChars[i];
+            i = i + 1;
+        }
+    }
+    return result;
+}

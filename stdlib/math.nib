@@ -1,0 +1,43 @@
+func mathAbs(x) {
+    if x < 0 {
+        return -x;
+    }
+    return x;
+}
+
+func mathMin(a, b) {
+    if a < b {
+        return a;
+    }
+    return b;
+}
+
+func mathMax(a, b) {
+    if a > b {
+        return a;
+    }
+    return b;
+}
+
+func mathClamp(x, lo, hi) {
+    if x < lo {
+        return lo;
+    }
+    if x > hi {
+        return hi;
+    }
+    return x;
+}
+
+func mathPow(base, exponent) {
+    if exponent < 0 {
+        return 1.0 / mathPow(base, -exponent);
+    }
+    var result = 1;
+    var i = 0;
+    while i < exponent {
+        result = result * base;
+        i = i + 1;
+    }
+    return result;
+}
