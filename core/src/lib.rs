@@ -50,12 +50,6 @@ impl Nib {
         Ok(())
     }
 
-    // Infallible: just queues the string. Lexing/parsing/running all happen
-    // in `run()` (in call order, before the main script), so a host binding
-    // never needs a try/catch around `include()` itself, and each included
-    // source keeps its own line-1-relative positions. Ignores
-    // `disable_keywords` since included source is host-chosen, not the
-    // untrusted script passed to `parse()`.
     pub fn include(&mut self, source: impl Into<String>) {
         self.included.push(source.into());
     }
