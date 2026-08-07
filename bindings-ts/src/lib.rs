@@ -23,6 +23,10 @@ impl Nib {
             .map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
+    pub fn include(&mut self, source: String) {
+        self.nib.include(source);
+    }
+
     pub fn run(&mut self) -> Result<(), JsValue> {
         self.nib
             .run()

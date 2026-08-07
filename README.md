@@ -10,6 +10,8 @@
 
 It has no standard library and nothing pre-bound by default: the host decides exactly which native functions a script is allowed to call (`register_func`), and can even strip specific keywords out of the language for a given script (`disable_keywords`) — e.g. dropping `while`/`for` to rule out unbounded loops. That opt-in-only surface makes it a fit for running untrusted or user-authored logic inside a larger app: plugin scripting, rules/workflow engines, user-defined formulas, that kind of thing — where you want scripts to only ever touch what you explicitly exposed.
 
+For shared logic that's easier to write in `nib` itself than as native Rust/PHP/JS functions, a host can also `include()` its own nib-authored library code (or a prepared one, if/when one ships) before running the main script — top-level `func`s from an include land in the same global scope the main script runs in, so it can call them directly. This is separate from `register_func`: it doesn't need the host to touch its own language at all, and included code stays subject to the same "no closures, top-level `func` only" rules as any other `nib` script. `include()` itself can't fail — it just queues the source — so a host never needs error handling around the call; parsing and running happen together inside `run()`, so any problem with included code (or the main script) surfaces from that one call.
+
 The same language also reaches multiple host runtimes: a PHP extension (`bindings-php`) and TypeScript/WebAssembly bindings (`bindings-ts`) sit on top of the same core interpreter, so identical `nib` scripts and host-defined behavior can run in a PHP backend and a browser/Node frontend alike.
 
 ## Table of contents
@@ -229,15 +231,19 @@ $nib->registerFunc("print", function (...$args) {
 
 $nib->disableKeywords(["while"]); // optional: restrict the language surface
 
+$nib->include('
+    func double(x) { return x * 2; }
+');
+
 $nib->parse('
     var x = 1 + 2;
-    print("x =", x);
+    print("x =", double(x));
 ');
 
 $nib->run();
 ```
 
-`parse()` and `run()` throw on error (a bad script raises a PHP exception rather than returning an error code), so wrap them in `try`/`catch` when running untrusted scripts:
+`include()` just queues the source and can't fail on its own — no try/catch needed around it. `parse()` and `run()` throw on error (a bad script raises a PHP exception rather than returning an error code), so wrap them in `try`/`catch` when running untrusted scripts. `run()` is also where a problem in included code would surface (labeled `(in included code)` so it's not confused with a main-script error):
 
 ```php
 try {
@@ -276,13 +282,19 @@ nib.registerFunc("print", (...args) => {
 
 nib.disableKeywords(["while"]); // optional: restrict the language surface
 
+nib.include(`
+    func double(x) { return x * 2; }
+`);
+
 nib.parse(`
     var x = 1 + 2;
-    print("x =", x);
+    print("x =", double(x));
 `);
 
 nib.run();
 ```
+
+`include()` just queues the source and can't fail on its own — no try/catch needed around it. A problem in included code surfaces from `run()` instead (labeled `(in included code)` so it's not confused with a main-script error).
 
 Direct browser, no bundler — needs an explicit async init first:
 

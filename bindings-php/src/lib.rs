@@ -23,6 +23,10 @@ impl Nib {
         Ok(())
     }
 
+    pub fn include(&mut self, source: String) {
+        self.nib.include(source);
+    }
+
     pub fn run(&mut self) -> PhpResult<()> {
         self.nib.run().map_err(|e| e.to_string())?;
         Ok(())
