@@ -261,8 +261,8 @@ Both host bindings accept an optional config when constructing a `Nib` instance 
 
 ### Installation
 
-1. Download the extension build for your platform from the [Releases page](https://github.com/sntworx/nib/releases).
-2. Copy it into your PHP install's `extension_dir` (find that path with `php -i | grep extension_dir`). **On macOS**, PHP looks for a `.so` file even though Rust produces a `.dylib` — rename it to end in `.so` after copying it over, or PHP won't find it.
+1. Download the extension build for your platform from the [Releases page](https://github.com/sntworx/nib/releases). Release builds are always packaged as `.so`, even the macOS one (PHP looks for a `.so` file regardless of platform, even though Rust itself produces a `.dylib` there).
+2. Copy it into your PHP install's `extension_dir` (find that path with `php -i | grep extension_dir`).
 3. Enable it in `php.ini`:
    ```ini
    extension=php_nib.so

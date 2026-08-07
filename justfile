@@ -31,6 +31,11 @@ package-bindings-php-linux-x64-gnu:
 package-bindings-php-linux-x64-musl:
   ./bindings-php/scripts/package.sh x86_64-unknown-linux-musl
 
+# Generates dist/php-nib/SHA256SUMS over whatever packages are currently there.
+# Uses sha256sum on Linux, shasum -a 256 on macOS (whichever is on PATH).
+checksum-bindings-php:
+  ./bindings-php/scripts/checksum.sh
+
 # TS Bindings
 
 build-bindings-ts-web:

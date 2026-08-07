@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds bindings-php in release mode for a given Rust target triple and
 # copies the resulting cdylib into dist/php-nib/ as
-#   php_nib-v<crate-version>-php<major.minor>-<target-triple>.<ext>
+#   php_nib-v<crate-version>-php<major.minor>-<target-triple>.so
 #
 # The target triple already encodes OS/arch/libc (gnu vs musl), so folding
 # it straight into the filename is what keeps 3 PHP versions x N targets
@@ -9,6 +9,10 @@
 # binary is on PATH at build time (ext-php-rs links against it), so building
 # for multiple PHP versions means switching the active PHP (phpbrew/asdf/
 # Docker/etc.) between invocations, not something this script controls.
+#
+# Packaged output always ends in .so, even on macOS where cargo produces a
+# .dylib — PHP looks for a .so extension_dir file regardless of platform, so
+# renaming here means users don't have to do it by hand after downloading.
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
@@ -19,8 +23,8 @@ if [[ -z "$target" ]]; then
 fi
 
 case "$target" in
-  *-apple-darwin) ext="dylib" ;;
-  *-linux-*) ext="so" ;;
+  *-apple-darwin) built_ext="dylib" ;;
+  *-linux-*) built_ext="so" ;;
   *) echo "error: unsupported target for packaging: $target" >&2; exit 1 ;;
 esac
 
@@ -37,7 +41,7 @@ rustup target add "$target"
 
 cargo build -p bindings-php --release --target "$target"
 
-built_lib="target/$target/release/libphp_nib.$ext"
+built_lib="target/$target/release/libphp_nib.$built_ext"
 if [[ ! -f "$built_lib" ]]; then
   echo "error: expected build output not found: $built_lib" >&2
   exit 1
@@ -47,7 +51,7 @@ php_version=$(php -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;')
 crate_version=$(sed -n 's/^version *= *"\(.*\)"/\1/p' bindings-php/Cargo.toml | head -n1)
 
 mkdir -p dist/php-nib
-out="dist/php-nib/php_nib-v${crate_version}-php${php_version}-${target}.${ext}"
+out="dist/php-nib/php_nib-v${crate_version}-php${php_version}-${target}.so"
 cp "$built_lib" "$out"
 
 echo "$out"
