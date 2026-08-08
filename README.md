@@ -203,6 +203,14 @@ s.trim().lower();  // -> "hello world"
 s.len();        // -> 15 (character count, not byte count)
 ```
 
+```
+"42".to_int();     // -> 42
+"3.14".to_float();  // -> 3.14
+"abc".to_int();     // -> runtime error, not 0 or null
+```
+
+`.to_int()`/`.to_float()` parse the string and fail loud on bad input (`RuntimeError`, same as `pop()` on an empty array) rather than returning `null` — there's no forgiving `.get()`-style variant. `"inf"`/`"nan"` also fail, even though Rust's own float parser accepts them, since `nib` treats non-finite floats as an error everywhere else too.
+
 Strings have no `.` for growing them — use `+` (`s = s + "!";`), same as always. There's also no direct indexing (`s[0]`) or iteration (`for c in s`); instead, `.chars()` splits a string into an `Array` of single-character strings, which already has both:
 
 ```
@@ -221,6 +229,15 @@ for c in "abc".chars() {
 ```
 
 `floor`/`ceil`/`round` are `Float`-only and return an `Int` (not a `Float`) — the usual reason to want this conversion is to use the result as an array index, which needs a real `Int`. `Int` has no such methods (nothing to convert). Watch operator precedence: unary `-` binds looser than `.method()`, so `-3.7.floor()` means `-(3.7.floor())` (`-3`), not `(-3.7).floor()` (`-4`) — parenthesize the receiver if the sign needs to apply first.
+
+```
+(3.9).to_int();   // -> 3, truncates toward zero (unlike floor/ceil/round)
+(3.5).to_str();   // -> "3.5"
+(7).to_float();   // -> 7.0
+(7).to_str();     // -> "7"
+```
+
+`.to_int()` on a `Float` truncates toward zero rather than rounding — it's a cast, not a fourth rounding mode alongside `floor`/`ceil`/`round`. `Int`/`Float`/`Str` cover the full typecasting set between each other; there's no `.to_bool()` anywhere, since `nib` has no truthiness coercion elsewhere either (`if`/`while` require a real `Bool`), and `Array`/`Map` stringify via `print`/`+` already, so they don't need a `.to_str()` of their own.
 
 ### What's not there
 

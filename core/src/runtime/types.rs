@@ -2,7 +2,7 @@ use std::fmt;
 use std::rc::Rc;
 
 use crate::ast::types::AstNode;
-use crate::runtime::helpers::checked_i64_from_f64;
+use crate::runtime::helpers::{checked_float, checked_i64_from_f64};
 
 #[derive(Debug)]
 pub struct Function {
@@ -187,6 +187,44 @@ impl Value {
                 }
                 Ok(MethodResult::Pure(Value::Str(s.trim().to_string())))
             }
+            // Fail loud on unparseable input, same convention as pop()/remove()
+            // rather than a get()-style Null fallback. The message omits the
+            // string itself, same reasoning as type_name() above - don't echo
+            // unescaped script-controlled content (e.g. terminal escapes)
+            // through a diagnostic path.
+            (Value::Str(s), "to_int") => {
+                if !args.is_empty() {
+                    return Err(format!("'to_int' expects 0 arguments, got {}", args.len()));
+                }
+                let parsed = s
+                    .parse::<i64>()
+                    .map_err(|_| "cannot convert string to int".to_string())?;
+                Ok(MethodResult::Pure(Value::Int(parsed)))
+            }
+            // Routed through checked_float since Rust's f64::from_str accepts
+            // "inf"/"nan" as valid floats, which would violate the
+            // non-finite-is-an-error invariant every other float path enforces.
+            (Value::Str(s), "to_float") => {
+                if !args.is_empty() {
+                    return Err(format!("'to_float' expects 0 arguments, got {}", args.len()));
+                }
+                let parsed = s
+                    .parse::<f64>()
+                    .map_err(|_| "cannot convert string to float".to_string())?;
+                checked_float(parsed).map(MethodResult::Pure)
+            }
+            (Value::Int(v), "to_float") => {
+                if !args.is_empty() {
+                    return Err(format!("'to_float' expects 0 arguments, got {}", args.len()));
+                }
+                Ok(MethodResult::Pure(Value::Float(*v as f64)))
+            }
+            (Value::Int(v), "to_str") => {
+                if !args.is_empty() {
+                    return Err(format!("'to_str' expects 0 arguments, got {}", args.len()));
+                }
+                Ok(MethodResult::Pure(Value::Str(v.to_string())))
+            }
             // Float-only (an Int has nothing to convert). Returns Int, not a
             // Float with a zeroed fraction, since the usual reason to want
             // this is to use the result as an array index.
@@ -207,6 +245,20 @@ impl Value {
                     return Err(format!("'round' expects 0 arguments, got {}", args.len()));
                 }
                 checked_i64_from_f64(f.round()).map(|i| MethodResult::Pure(Value::Int(i)))
+            }
+            // Truncates toward zero (like Rust's `as i64`), distinct from
+            // floor/ceil/round - this is a cast, not a fourth rounding mode.
+            (Value::Float(f), "to_int") => {
+                if !args.is_empty() {
+                    return Err(format!("'to_int' expects 0 arguments, got {}", args.len()));
+                }
+                checked_i64_from_f64(*f).map(|i| MethodResult::Pure(Value::Int(i)))
+            }
+            (Value::Float(f), "to_str") => {
+                if !args.is_empty() {
+                    return Err(format!("'to_str' expects 0 arguments, got {}", args.len()));
+                }
+                Ok(MethodResult::Pure(Value::Str(f.to_string())))
             }
             (value, name) => Err(format!("no method '{}' on {}", name, value.type_name())),
         }
