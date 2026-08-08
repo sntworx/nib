@@ -29,15 +29,15 @@ pub struct Config {
     // `while true { }`) fails with a RuntimeError instead of hanging the
     // host process. Resets to 0 at the start of every `run()` call, so it's
     // a per-run budget, not a lifetime total on a reused `Nib`/`Interpreter`.
-    // 1,000,000 fails a trivial infinite loop in a fraction of a second
-    // while leaving generous headroom for legitimate loops over thousands
-    // of elements.
+    // Sized for an embedded sandbox rather than a maximum plausible script:
+    // 100,000 is roughly 10ms of work, enough for a rules/formula script over
+    // a few thousand items, and a host that genuinely needs more can raise it.
     pub max_steps: usize,
     // Caps a single string's length (character count, matching `Str::len()`'s
     // char-count-not-byte-count convention), checked at every point a string
     // is constructed or grown (literals, concatenation, methods that return
     // a string). Guards against unbounded memory growth via e.g. `s += "x";`
-    // in a loop.
+    // in a loop. 64KiB is generous for the formulas/rules this is aimed at.
     pub max_string_length: usize,
     // Caps a single array's element count, checked at every point an array
     // is constructed or grown (literals, `push()`, methods that return an
@@ -54,8 +54,8 @@ pub struct Config {
     // bindings' conversion, Drop - costs one real stack frame per level, so a
     // deep enough value aborts the process. Drop is why this has to be a
     // build-time limit rather than a check inside each walk: a destructor
-    // can't return an error or be caught. 128 matches `max_parse_depth` and
-    // the bindings' own conversion cap, so nothing here nests deeper than 128.
+    // can't return an error or be caught. Kept well under `max_parse_depth`
+    // and the bindings' own 128-level conversion cap.
     pub max_value_depth: usize,
     // Caps the *total* values in one array/map tree, counting nested ones -
     // `[[1, 2], [3]]` is 6. The per-container limits above only measure one
@@ -64,7 +64,9 @@ pub struct Config {
     // 2 elements long, yet doubles what printing, comparing, or converting the
     // value to a host language has to walk - 26 rounds of it is 2^26 nodes
     // from five lines of script. Default 10x the per-container limits, so flat
-    // data still hits those (and their clearer messages) first.
+    // data still hits those (and their clearer messages) first. At ~40 bytes a
+    // node this caps one value's memory near 4MiB; the old 10,000,000 allowed
+    // ~400MiB, which is a ceiling, not a safe default.
     pub max_value_nodes: usize,
 }
 
@@ -73,12 +75,12 @@ impl Default for Config {
         Config {
             max_call_depth: 200,
             max_parse_depth: 128,
-            max_steps: 1_000_000,
-            max_string_length: 1_000_000,
-            max_array_length: 1_000_000,
-            max_map_size: 1_000_000,
-            max_value_depth: 128,
-            max_value_nodes: 10_000_000,
+            max_steps: 100_000,
+            max_string_length: 65_536,
+            max_array_length: 10_000,
+            max_map_size: 10_000,
+            max_value_depth: 64,
+            max_value_nodes: 100_000,
         }
     }
 }

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
 
@@ -111,43 +112,81 @@ impl Drop for ArrayData {
     }
 }
 
-// Payload behind Value::Map - same rationale as ArrayData above.
+// Payload behind Value::Map - same rationale as ArrayData above, plus an
+// `index` mapping key -> position in `pairs`. The Vec is what makes iteration
+// order insertion order (the whole reason a map isn't a HashMap here); without
+// the side index every lookup and every upsert was a linear scan, which made
+// filling a map quadratic - 20k entries took 11s. The two must stay in step:
+// only `insert`/`remove_at` may touch either.
 #[derive(Debug, Clone)]
 pub struct MapData {
     pairs: Vec<(String, Value)>,
+    index: HashMap<String, usize>,
     depth: usize,
     nodes: usize,
 }
 
 impl MapData {
     fn new(pairs: Vec<(String, Value)>) -> Self {
-        let depth = pairs.iter().map(|(_, v)| v.depth() + 1).max().unwrap_or(1);
-        let nodes = pairs
-            .iter()
-            .fold(1usize, |acc, (_, v)| acc.saturating_add(v.nodes()));
-        MapData {
-            pairs,
-            depth,
-            nodes,
+        let mut data = MapData {
+            pairs: Vec::with_capacity(pairs.len()),
+            index: HashMap::with_capacity(pairs.len()),
+            depth: 1,
+            nodes: 1,
+        };
+        // Sequential inserts also collapse duplicate literal keys (last wins,
+        // first position kept), so callers don't dedupe separately.
+        for (key, value) in pairs {
+            data.insert(key, value);
         }
+        data
+    }
+
+    pub(crate) fn position(&self, key: &str) -> Option<usize> {
+        self.index.get(key).copied()
+    }
+
+    // Named `lookup`, not `get`, so it can't be confused with the `Vec::get`
+    // reachable through Deref.
+    pub(crate) fn lookup(&self, key: &str) -> Option<&Value> {
+        self.position(key).map(|i| &self.pairs[i].1)
+    }
+
+    pub(crate) fn node_count(&self) -> usize {
+        self.nodes
+    }
+
+    pub(crate) fn depth_count(&self) -> usize {
+        self.depth
     }
 
     // Upsert: the one write maps need, and the only place a map grows.
     pub(crate) fn insert(&mut self, key: String, value: Value) {
         self.depth = self.depth.max(value.depth() + 1);
         self.nodes = self.nodes.saturating_add(value.nodes());
-        match self.pairs.iter_mut().find(|(k, _)| *k == key) {
-            Some((_, slot)) => {
-                self.nodes = self.nodes.saturating_sub(slot.nodes());
-                *slot = value;
+        match self.position(&key) {
+            Some(i) => {
+                self.nodes = self.nodes.saturating_sub(self.pairs[i].1.nodes());
+                self.pairs[i].1 = value;
             }
-            None => self.pairs.push((key, value)),
+            None => {
+                self.index.insert(key.clone(), self.pairs.len());
+                self.pairs.push((key, value));
+            }
         }
     }
 
     fn remove_at(&mut self, index: usize) -> (String, Value) {
         // stale `depth` stays a safe upper bound, same as ArrayData::pop
         let removed = self.pairs.remove(index);
+        self.index.remove(&removed.0);
+        // Repairing the shifted positions is O(n), but `Vec::remove` already
+        // shifted the same elements - no asymptotic change.
+        for pos in self.index.values_mut() {
+            if *pos > index {
+                *pos -= 1;
+            }
+        }
         self.nodes = self.nodes.saturating_sub(removed.1.nodes());
         removed
     }
@@ -329,7 +368,7 @@ impl Value {
                     _ => return Err("'has' expects a string argument".to_string()),
                 };
                 Ok(MethodResult::Pure(Value::Bool(
-                    pairs.iter().any(|(k, _)| k == key),
+                    pairs.position(key).is_some(),
                 )))
             }
             (Value::Map(pairs), "get") => {
@@ -341,11 +380,7 @@ impl Value {
                     _ => return Err("'get' expects a string argument".to_string()),
                 };
                 Ok(MethodResult::Pure(
-                    pairs
-                        .iter()
-                        .find(|(k, _)| k == key)
-                        .map(|(_, v)| v.clone())
-                        .unwrap_or(Value::Null),
+                    pairs.lookup(key).cloned().unwrap_or(Value::Null),
                 ))
             }
             (Value::Map(pairs), "remove") => {
@@ -357,8 +392,7 @@ impl Value {
                     _ => return Err("'remove' expects a string argument".to_string()),
                 };
                 let pos = pairs
-                    .iter()
-                    .position(|(k, _)| *k == key)
+                    .position(&key)
                     .ok_or_else(|| format!("key '{}' not found in map", key))?;
                 let (_, removed) = Rc::make_mut(pairs).remove_at(pos);
                 Ok(MethodResult::Mutating(removed))
