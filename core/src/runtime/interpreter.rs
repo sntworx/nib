@@ -381,6 +381,18 @@ impl Interpreter {
                 .ok_or_else(|| self.error(format!("undefined variable '{}'", name))),
             Expr::Unary { op, expr } => self.eval_unary(op, expr),
             Expr::Binary { op, left, right } => self.eval_binary(op, left, right),
+            Expr::Ternary {
+                cond,
+                then_expr,
+                else_expr,
+            } => {
+                let branch = if is_truthy(&self.eval(cond)?) {
+                    then_expr
+                } else {
+                    else_expr
+                };
+                self.eval(branch)
+            }
             Expr::Assign { name, value } => {
                 let value = self.eval(value)?;
                 self.env

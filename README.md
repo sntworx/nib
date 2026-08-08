@@ -101,6 +101,7 @@ x++;      // also x-- and prefix ++x/--x
 a == b && c != d;    // && and || short-circuit
 !done || -x <= 0;    // unary ! and -
 !"" && items;        // any value works: truthy/falsy, result is always a Bool
+n > 0 ? "yes" : "no";  // ternary — see Control flow
 ```
 
 ### Control flow
@@ -149,6 +150,15 @@ match x {
 ```
 
 `if`/`while`/`match` conditions don't need parens; C-style `for`'s three clauses do, and each of them is optional (`for (;;) { }` loops forever). `for x in arr { }` never has parens — that's how it's told apart from C-style `for`. `break`/`continue` are only valid inside a loop.
+
+For branching inside an expression there's a ternary, the one place `nib` conditions produce a value rather than choosing a statement:
+
+```
+var label = score > 90 ? "A" : "B";
+var grade = s > 90 ? "A" : s > 80 ? "B" : "C";   // chains group to the right
+```
+
+Only the taken branch is evaluated, so the untaken side can safely be an expensive or failing call. Chains are right-associative, and the whole thing nests anywhere an expression can go — a map value, an array element, a call argument.
 
 Conditions accept any value, not just a `Bool`. Falsy is `false`, `null`, `0`, `0.0`, `""`, `[]` and `{}`; everything else is truthy — including `"0"` (unlike PHP) and `[0]`. So `if items { }` means "has items", and `if name { }` means "non-empty". The same rule applies to `&&`, `||` and `!`, but those still evaluate to a real `Bool` rather than to one of their operands — `"" || "x"` is `true`, not `"x"`, so there's no JS-style `x || "default"` idiom.
 

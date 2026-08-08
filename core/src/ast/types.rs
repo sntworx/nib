@@ -47,6 +47,14 @@ pub enum Expr {
         left: Box<Expr>,
         right: Box<Expr>,
     },
+    // `cond ? then_expr : else_expr` - the only expression-level branch in the
+    // language. Only the taken branch is evaluated, and `cond` goes through
+    // the same `is_truthy` coercion `if`/`while` use.
+    Ternary {
+        cond: Box<Expr>,
+        then_expr: Box<Expr>,
+        else_expr: Box<Expr>,
+    },
     Assign {
         name: String,
         value: Box<Expr>,

@@ -41,6 +41,7 @@ pub enum TokenKind {
     Dot,       // .
     Comma,     // ,
     Colon,     // :
+    Question,  // ?
 
     // operators
     Assign,     // =
@@ -139,6 +140,7 @@ impl fmt::Display for TokenKind {
             TokenKind::Dot => write!(f, "'.'"),
             TokenKind::Comma => write!(f, "','"),
             TokenKind::Colon => write!(f, "':'"),
+            TokenKind::Question => write!(f, "'?'"),
 
             TokenKind::Assign => write!(f, "'='"),
             TokenKind::Eq => write!(f, "'=='"),

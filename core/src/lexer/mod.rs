@@ -288,6 +288,10 @@ impl Lexer {
                 self.advance();
                 TokenKind::Colon
             }
+            '?' => {
+                self.advance();
+                TokenKind::Question
+            }
             '+' => {
                 self.advance();
                 if self.matches('=') {

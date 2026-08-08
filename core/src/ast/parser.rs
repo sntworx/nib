@@ -435,7 +435,7 @@ impl Parser {
             return self.incr_decr(target, BinaryOp::Sub);
         }
 
-        let expr = self.or()?;
+        let expr = self.ternary()?;
 
         // `x++`/`x--` desugar to `x = x + 1`/`x = x - 1` - not embeddable
         // mid-expression like `1 + x++`, same as compound assignment below.
@@ -514,6 +514,26 @@ impl Parser {
             }),
             _ => Err(self.error("invalid increment/decrement target")),
         }
+    }
+
+    // Both branches go through `expression()` rather than recursing straight
+    // back into `ternary()`: that makes chains right-associative
+    // (`a ? b : c ? d : e` groups to the right) and, more importantly, puts
+    // nested ternaries under the same `max_parse_depth` guard everything else
+    // has - they nest arbitrarily deep in one statement otherwise.
+    fn ternary(&mut self) -> Result<Expr, ParseError> {
+        let cond = self.or()?;
+        if !self.match_kind(&TokenKind::Question) {
+            return Ok(cond);
+        }
+        let then_expr = self.expression()?;
+        self.expect(&TokenKind::Colon, "after '?' branch of ternary")?;
+        let else_expr = self.expression()?;
+        Ok(Expr::Ternary {
+            cond: Box::new(cond),
+            then_expr: Box::new(then_expr),
+            else_expr: Box::new(else_expr),
+        })
     }
 
     fn or(&mut self) -> Result<Expr, ParseError> {
