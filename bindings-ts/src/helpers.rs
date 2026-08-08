@@ -29,6 +29,9 @@ pub fn parse_config(options: &JsValue) -> Result<Config, JsValue> {
     if let Some(v) = get_config_field(options, "maxValueDepth")? {
         config.max_value_depth = v;
     }
+    if let Some(v) = get_config_field(options, "maxValueNodes")? {
+        config.max_value_nodes = v;
+    }
     Ok(config)
 }
 

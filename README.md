@@ -166,7 +166,7 @@ try {
 
 `throw expr;` can throw any value, not just a string — a thrown `Map`/`Array`/etc. arrives in `catch`'s variable unwrapped, not stringified. Every runtime error is catchable except one: exhausting the [`maxSteps`](#configuration) budget propagates straight through `try`, at any nesting depth, and stops the script. That's not a special case so much as the only honest reading of it — the budget a `catch` block needs to run its own statements is precisely what just ran out, so catching it could never do anything but misreport the failure at the catch block's position instead of the loop's. `exit;` stays outside `try` for the same reason.
 
-The other limit errors (`maxCallDepth`, `maxStringLength`, `maxArrayLength`, `maxMapSize`, `maxValueDepth`) *are* catchable and the script keeps running afterwards — none of them leaves a counter exhausted, and catching one grants no extra budget, since `maxCallDepth` is decremented back before the error propagates and the size checks hold no counter at all.
+The other limit errors (`maxCallDepth`, `maxStringLength`, `maxArrayLength`, `maxMapSize`, `maxValueDepth`, `maxValueNodes`) *are* catchable and the script keeps running afterwards — none of them leaves a counter exhausted, and catching one grants no extra budget, since `maxCallDepth` is decremented back before the error propagates and the size checks hold no counter at all.
 
 ```
 func check(x) {
@@ -321,6 +321,7 @@ Both host bindings accept an optional config when constructing a `Nib` instance 
 | `maxArrayLength` | `1000000` | Caps a single array's element count, checked wherever an array is built or grows — literals, `push()`, and methods that return an array (`chars()`, `keys()`, `values()`). Exceeding it fails with `"array exceeds maximum length of N elements"`. |
 | `maxMapSize` | `1000000` | Caps a single map's entry count, checked whenever a *new* key is inserted — literals and `m[newKey] = x`. Overwriting an existing key never grows the map, so it's never rejected regardless of this limit. Exceeding it fails with `"map exceeds maximum size of N entries"`. |
 | `maxValueDepth` | `128` | Caps how deeply arrays/maps nest inside each other (`[[[1]]]` is 3). Unlike the limits above it guards the **native stack**, not memory: printing, comparing, converting a value to a host language, and freeing it each walk the structure one real stack frame per level, so a deep enough value would abort the process rather than raise an error. Exceeding it fails with `"value nested deeper than N levels"` when the value is built. Raising it is safe for freeing values (that's iterative) but not for printing or comparing them, so leave it alone unless you have data that genuinely nests deeper. |
+| `maxValueNodes` | `10000000` | Caps the **total** values in one array/map tree, counting nested ones (`[[1, 2], [3]]` is 6). The per-container limits above only measure one level, which isn't enough on its own: arrays and maps share their payload internally, so `a = [a, a]` costs almost no memory and stays 2 elements long while doubling what printing, comparing, or converting the value has to walk — 26 rounds of that from five lines of script is 2^26. Exceeding it fails with `"value exceeds maximum total size of N elements"`. The default is 10× the per-container limits, so ordinary flat data still hits those (and their clearer messages) first. |
 
 ## Building from source
 
@@ -410,6 +411,7 @@ $nib = new Nib([
     "maxArrayLength" => 10000,
     "maxMapSize" => 10000,
     "maxValueDepth" => 64,
+    "maxValueNodes" => 100000,
 ]);
 ```
 
@@ -490,6 +492,7 @@ const nib = new Nib({
     maxArrayLength: 10000,
     maxMapSize: 10000,
     maxValueDepth: 64,
+    maxValueNodes: 100000,
 });
 ```
 

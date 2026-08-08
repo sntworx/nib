@@ -57,7 +57,7 @@ func double(x) { return x * 2; }
 
 Values crossing the boundary in either direction may nest at most 128 levels deep; anything deeper (including a cyclic object like `o.self = o`, which has no bottom) fails with `value nested deeper than 128 levels`. The conversion walks the structure recursively, so without that cap a cyclic value would overflow the wasm stack — and because that unwind skips Rust destructors, it poisons the whole module, not just the `Nib` instance that hit it.
 
-`new Nib()` optionally takes an options object to override a handful of interpreter safety limits (recursion depth, parser nesting depth, total execution steps, max string/array/map size, max value nesting depth) — omit it, or any of its keys, to use the defaults; see the [main repo](https://github.com/sntworx/nib#configuration) for what each option guards against:
+`new Nib()` optionally takes an options object to override a handful of interpreter safety limits (recursion depth, parser nesting depth, total execution steps, max string/array/map size, max value nesting depth, max total values per tree) — omit it, or any of its keys, to use the defaults; see the [main repo](https://github.com/sntworx/nib#configuration) for what each option guards against:
 
 ```js
 const nib = new Nib({
@@ -68,6 +68,7 @@ const nib = new Nib({
     maxArrayLength: 10000,
     maxMapSize: 10000,
     maxValueDepth: 64,
+    maxValueNodes: 100000,
 });
 ```
 

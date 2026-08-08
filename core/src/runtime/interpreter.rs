@@ -27,6 +27,7 @@ pub struct Interpreter {
     max_array_length: usize,
     max_map_size: usize,
     max_value_depth: usize,
+    max_value_nodes: usize,
     current_pos: (usize, usize),
     should_exit: bool,
 }
@@ -43,6 +44,7 @@ impl Interpreter {
             max_array_length: config.max_array_length,
             max_map_size: config.max_map_size,
             max_value_depth: config.max_value_depth,
+            max_value_nodes: config.max_value_nodes,
             current_pos: (0, 0),
             should_exit: false,
         }
@@ -113,6 +115,11 @@ impl Interpreter {
             value if value.depth() > self.max_value_depth => Err(self.error(format!(
                 "value nested deeper than {} levels",
                 self.max_value_depth
+            ))),
+            // Bounds the logical tree the per-container limits can't see
+            value if value.nodes() > self.max_value_nodes => Err(self.error(format!(
+                "value exceeds maximum total size of {} elements",
+                self.max_value_nodes
             ))),
             _ => Ok(()),
         }
@@ -647,6 +654,7 @@ impl Interpreter {
                         )));
                     }
                     Rc::make_mut(items).set(idx as usize, new_elem);
+                    self.check_size_limits(&container)?;
                     Ok(container)
                 }
                 other => Err(self.error(format!(
@@ -716,14 +724,24 @@ impl Interpreter {
                 }
                 let idx_usize = idx as usize;
                 let current_elem = items[idx_usize].clone();
+                let current_nodes = current_elem.nodes();
                 let rhs = self.eval(value)?;
                 let new_elem = match op {
                     Some(op) => self.apply_binary_op(op, current_elem, rhs)?,
                     None => rhs,
                 };
-                // Safe to detach here: array index-assignment can't grow
-                // the array, so nothing between this and the write-back can
-                // fail and strand the binding.
+                // Replacing an element can still grow the *tree* (`a[0] = a`),
+                // so the budget is checked before the in-place write - after
+                // detach_binding there is nothing left to roll back to.
+                self.check_node_budget(
+                    items
+                        .node_count()
+                        .saturating_sub(current_nodes)
+                        .saturating_add(new_elem.nodes()),
+                )?;
+                self.check_depth_budget(items.depth_count().max(new_elem.depth() + 1))?;
+                // Safe to detach only now: nothing below can fail and strand
+                // the binding.
                 self.detach_binding(object);
                 Rc::make_mut(&mut items).set(idx_usize, new_elem.clone());
                 self.assign_to_target(object, Value::Array(items))?;
@@ -777,13 +795,37 @@ impl Interpreter {
     // size limit, and once `make_mut` has mutated in place there's no
     // pre-mutation copy left to roll back to - so its room is checked
     // *before* the mutation instead of the result being checked after.
-    fn check_push_room(&self, receiver: &Value) -> Result<(), RuntimeError> {
+    fn check_node_budget(&self, nodes: usize) -> Result<(), RuntimeError> {
+        if nodes > self.max_value_nodes {
+            return Err(self.error(format!(
+                "value exceeds maximum total size of {} elements",
+                self.max_value_nodes
+            )));
+        }
+        Ok(())
+    }
+
+    fn check_depth_budget(&self, depth: usize) -> Result<(), RuntimeError> {
+        if depth > self.max_value_depth {
+            return Err(self.error(format!(
+                "value nested deeper than {} levels",
+                self.max_value_depth
+            )));
+        }
+        Ok(())
+    }
+
+    fn check_push_room(&self, receiver: &Value, value: &Value) -> Result<(), RuntimeError> {
         match receiver {
             Value::Array(items) if items.len() >= self.max_array_length => {
                 Err(self.error(format!(
                     "array exceeds maximum length of {} elements",
                     self.max_array_length
                 )))
+            }
+            Value::Array(_) => {
+                self.check_node_budget(receiver.nodes().saturating_add(value.nodes()))?;
+                self.check_depth_budget(receiver.depth().max(value.depth() + 1))
             }
             _ => Ok(()),
         }
@@ -817,8 +859,10 @@ impl Interpreter {
             .map(|arg| self.eval(arg))
             .collect::<Result<Vec<_>, _>>()?;
 
-        if method == "push" {
-            self.check_push_room(&receiver)?;
+        if method == "push"
+            && let Some(pushed) = arg_values.first()
+        {
+            self.check_push_room(&receiver, pushed)?;
         }
 
         // Only after the args are evaluated - they may still read the binding

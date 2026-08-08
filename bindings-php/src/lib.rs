@@ -39,6 +39,9 @@ impl Nib {
             if let Some(v) = usize_option(options, "maxValueDepth")? {
                 config.max_value_depth = v;
             }
+            if let Some(v) = usize_option(options, "maxValueNodes")? {
+                config.max_value_nodes = v;
+            }
         }
         Ok(Nib {
             nib: NibCore::with_config(config),

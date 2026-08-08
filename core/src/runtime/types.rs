@@ -39,28 +39,53 @@ impl fmt::Debug for NativeFunction {
 pub struct ArrayData {
     items: Vec<Value>,
     depth: usize,
+    nodes: usize,
 }
 
 impl ArrayData {
     fn new(items: Vec<Value>) -> Self {
         let depth = items.iter().map(|v| v.depth() + 1).max().unwrap_or(1);
-        ArrayData { items, depth }
+        let nodes = items
+            .iter()
+            .fold(1usize, |acc, v| acc.saturating_add(v.nodes()));
+        ArrayData {
+            items,
+            depth,
+            nodes,
+        }
     }
 
     fn push(&mut self, value: Value) {
         self.depth = self.depth.max(value.depth() + 1);
+        self.nodes = self.nodes.saturating_add(value.nodes());
         self.items.push(value);
     }
 
     fn pop(&mut self) -> Option<Value> {
         // `depth` deliberately isn't recomputed: shrinking can only lower it,
         // so the stale value stays a safe upper bound, and recomputing would
-        // make `pop` O(len).
-        self.items.pop()
+        // make `pop` O(len). `nodes` *is* exact - subtracting is O(1).
+        let popped = self.items.pop();
+        if let Some(value) = &popped {
+            self.nodes = self.nodes.saturating_sub(value.nodes());
+        }
+        popped
+    }
+
+    pub(crate) fn node_count(&self) -> usize {
+        self.nodes
+    }
+
+    pub(crate) fn depth_count(&self) -> usize {
+        self.depth
     }
 
     pub(crate) fn set(&mut self, index: usize, value: Value) {
         self.depth = self.depth.max(value.depth() + 1);
+        self.nodes = self
+            .nodes
+            .saturating_sub(self.items[index].nodes())
+            .saturating_add(value.nodes());
         self.items[index] = value;
     }
 }
@@ -91,26 +116,40 @@ impl Drop for ArrayData {
 pub struct MapData {
     pairs: Vec<(String, Value)>,
     depth: usize,
+    nodes: usize,
 }
 
 impl MapData {
     fn new(pairs: Vec<(String, Value)>) -> Self {
         let depth = pairs.iter().map(|(_, v)| v.depth() + 1).max().unwrap_or(1);
-        MapData { pairs, depth }
+        let nodes = pairs
+            .iter()
+            .fold(1usize, |acc, (_, v)| acc.saturating_add(v.nodes()));
+        MapData {
+            pairs,
+            depth,
+            nodes,
+        }
     }
 
     // Upsert: the one write maps need, and the only place a map grows.
     pub(crate) fn insert(&mut self, key: String, value: Value) {
         self.depth = self.depth.max(value.depth() + 1);
+        self.nodes = self.nodes.saturating_add(value.nodes());
         match self.pairs.iter_mut().find(|(k, _)| *k == key) {
-            Some((_, slot)) => *slot = value,
+            Some((_, slot)) => {
+                self.nodes = self.nodes.saturating_sub(slot.nodes());
+                *slot = value;
+            }
             None => self.pairs.push((key, value)),
         }
     }
 
     fn remove_at(&mut self, index: usize) -> (String, Value) {
         // stale `depth` stays a safe upper bound, same as ArrayData::pop
-        self.pairs.remove(index)
+        let removed = self.pairs.remove(index);
+        self.nodes = self.nodes.saturating_sub(removed.1.nodes());
+        removed
     }
 }
 
@@ -196,6 +235,20 @@ impl Value {
             Value::Array(data) => data.depth,
             Value::Map(data) => data.depth,
             _ => 0,
+        }
+    }
+
+    // Total values in this subtree counting itself, so `[1, 2]` is 3. Counts
+    // the *logical* tree, not physical memory: copy-on-write means `[a, a]`
+    // stores one shared `a` but still prints, compares and converts as two, so
+    // this is what actually bounds those walks. Cached and maintained in O(1),
+    // saturating rather than wrapping - `a = [a, a]` doubles it, so it reaches
+    // usize::MAX in 64 steps.
+    pub(crate) fn nodes(&self) -> usize {
+        match self {
+            Value::Array(data) => data.nodes,
+            Value::Map(data) => data.nodes,
+            _ => 1,
         }
     }
 

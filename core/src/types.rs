@@ -57,6 +57,15 @@ pub struct Config {
     // can't return an error or be caught. 128 matches `max_parse_depth` and
     // the bindings' own conversion cap, so nothing here nests deeper than 128.
     pub max_value_depth: usize,
+    // Caps the *total* values in one array/map tree, counting nested ones -
+    // `[[1, 2], [3]]` is 6. The per-container limits above only measure one
+    // level, which copy-on-write makes insufficient on its own: `a = [a, a]`
+    // shares one physical copy of `a`, so it costs almost no memory and stays
+    // 2 elements long, yet doubles what printing, comparing, or converting the
+    // value to a host language has to walk - 26 rounds of it is 2^26 nodes
+    // from five lines of script. Default 10x the per-container limits, so flat
+    // data still hits those (and their clearer messages) first.
+    pub max_value_nodes: usize,
 }
 
 impl Default for Config {
@@ -69,6 +78,7 @@ impl Default for Config {
             max_array_length: 1_000_000,
             max_map_size: 1_000_000,
             max_value_depth: 128,
+            max_value_nodes: 10_000_000,
         }
     }
 }
