@@ -7,7 +7,9 @@ use std::time::Instant;
 use clap::Parser;
 use nib_core::{Nib, Value};
 
+/// Run a nib script.
 #[derive(Parser)]
+#[command(version)]
 struct Cli {
     /// Script to run
     script: PathBuf,

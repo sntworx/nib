@@ -537,6 +537,7 @@ nib script.nib --include lib/math.nib,lib/string.nib     # load library files fi
 nib script.nib --ast                                      # print the parsed AST instead of running
 nib script.nib --ast out.txt                              # write the parsed AST to a file instead
 nib script.nib --check                                    # parse only, report syntax errors, don't run
+nib --version                                             # print the CLI version
 ```
 
 | Flag | Description |
@@ -545,6 +546,7 @@ nib script.nib --check                                    # parse only, report s
 | `--ast [FILE]` | Parses the script and prints its AST (Rust `Debug` format) instead of running it — a debugging aid for the parser, not a stable/versioned output format. With no `FILE`, prints to stdout; with `FILE`, writes there instead. |
 | `--time` | Prints wall-clock execution time after a successful run. |
 | `--check` | Parses the script *and* any `--include` files — but doesn't run any of them — and reports the first syntax error found, or `<script>: syntax OK`. Takes priority over `--ast`/`--time` if combined. Useful in CI or an editor's lint-on-save, where you want to catch a broken script without triggering its side effects. |
+| `--version` / `-V` | Prints the CLI version. Takes no script argument, unlike every other flag here. |
 
 Exits with status `0` on success, `1` on any failure (a missing/unreadable script or include file, a parse error, or a runtime error) — parse/runtime errors are printed to stderr via their own `Display` (`Parse error at 3:5: ...` / `Runtime error at 1:1: ...`).
 
