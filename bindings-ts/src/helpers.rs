@@ -50,7 +50,29 @@ pub fn describe_js_error(err: &JsValue) -> String {
         .unwrap_or_else(|| "unknown JS error".to_string())
 }
 
+// Both converters walk nested structures recursively. A cyclic JS value
+// (`o.self = o`) recurses forever, and a merely deep one overflows the wasm
+// stack - either way the unwind skips Rust destructors and poisons the whole
+// module, killing every Nib instance in the process, not just this one. 128 is
+// far below the ~2000 levels the shallower direction survives, and far above
+// any real payload.
+const MAX_CONVERSION_DEPTH: usize = 128;
+
+fn too_deep() -> String {
+    format!(
+        "value nested deeper than {} levels (cyclic value?)",
+        MAX_CONVERSION_DEPTH
+    )
+}
+
 pub fn value_to_js(value: &Value) -> Result<JsValue, String> {
+    value_to_js_at(value, 0)
+}
+
+fn value_to_js_at(value: &Value, depth: usize) -> Result<JsValue, String> {
+    if depth > MAX_CONVERSION_DEPTH {
+        return Err(too_deep());
+    }
     Ok(match value {
         Value::Int(i) => JsValue::from_f64(*i as f64),
         Value::Float(f) => JsValue::from_f64(*f),
@@ -60,14 +82,14 @@ pub fn value_to_js(value: &Value) -> Result<JsValue, String> {
         Value::Array(items) => {
             let arr = Array::new();
             for item in items {
-                arr.push(&value_to_js(item)?);
+                arr.push(&value_to_js_at(item, depth + 1)?);
             }
             arr.into()
         }
         Value::Map(pairs) => {
             let obj = Object::new();
             for (k, v) in pairs {
-                Reflect::set(&obj, &JsValue::from_str(k), &value_to_js(v)?)
+                Reflect::set(&obj, &JsValue::from_str(k), &value_to_js_at(v, depth + 1)?)
                     .map_err(|e| describe_js_error(&e))?;
             }
             obj.into()
@@ -79,6 +101,13 @@ pub fn value_to_js(value: &Value) -> Result<JsValue, String> {
 }
 
 pub fn js_to_value(js: &JsValue) -> Result<Value, String> {
+    js_to_value_at(js, 0)
+}
+
+fn js_to_value_at(js: &JsValue, depth: usize) -> Result<Value, String> {
+    if depth > MAX_CONVERSION_DEPTH {
+        return Err(too_deep());
+    }
     if js.is_null() || js.is_undefined() {
         Ok(Value::Null)
     } else if let Some(b) = js.as_bool() {
@@ -96,7 +125,7 @@ pub fn js_to_value(js: &JsValue) -> Result<Value, String> {
     } else if Array::is_array(js) {
         Array::from(js)
             .iter()
-            .map(|item| js_to_value(&item))
+            .map(|item| js_to_value_at(&item, depth + 1))
             .collect::<Result<Vec<_>, _>>()
             .map(Value::Array)
     } else if js.is_object() {
@@ -106,7 +135,7 @@ pub fn js_to_value(js: &JsValue) -> Result<Value, String> {
             .map(|key| {
                 let value = Reflect::get(&obj, &key).map_err(|e| describe_js_error(&e))?;
                 let key = key.as_string().ok_or("expected string object key")?;
-                Ok((key, js_to_value(&value)?))
+                Ok((key, js_to_value_at(&value, depth + 1)?))
             })
             .collect::<Result<Vec<_>, _>>()
             .map(Value::Map)

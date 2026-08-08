@@ -33,7 +33,28 @@ pub fn describe_call_error(err: PhpRsError) -> String {
     }
 }
 
+/// Both converters walk nested structures recursively. `Zval::array()`
+/// dereferences, so a self-referential PHP array (`$a["self"] = &$a`) recurses
+/// forever, and a merely deep one overflows the native stack - neither is
+/// something a host can defend against at the call site. 128 is far above any
+/// real payload.
+const MAX_CONVERSION_DEPTH: usize = 128;
+
+fn too_deep() -> String {
+    format!(
+        "value nested deeper than {} levels (recursive array?)",
+        MAX_CONVERSION_DEPTH
+    )
+}
+
 pub fn value_to_zval(value: &Value) -> Result<Zval, String> {
+    value_to_zval_at(value, 0)
+}
+
+fn value_to_zval_at(value: &Value, depth: usize) -> Result<Zval, String> {
+    if depth > MAX_CONVERSION_DEPTH {
+        return Err(too_deep());
+    }
     let zval = match value {
         Value::Int(i) => (*i).into_zval(false).map_err(|e| e.to_string())?,
         Value::Float(f) => (*f).into_zval(false).map_err(|e| e.to_string())?,
@@ -42,14 +63,14 @@ pub fn value_to_zval(value: &Value) -> Result<Zval, String> {
         Value::Null => Zval::null(),
         Value::Array(items) => items
             .iter()
-            .map(value_to_zval)
+            .map(|v| value_to_zval_at(v, depth + 1))
             .collect::<Result<Vec<_>, _>>()?
             .into_zval(false)
             .map_err(|e| e.to_string())?,
         Value::Map(pairs) => {
             let mut ht = ZendHashTable::new();
             for (k, v) in pairs {
-                ht.insert(k.as_str(), value_to_zval(v)?)
+                ht.insert(k.as_str(), value_to_zval_at(v, depth + 1)?)
                     .map_err(|e| e.to_string())?;
             }
             ht.into_zval(false).map_err(|e| e.to_string())?
@@ -62,6 +83,13 @@ pub fn value_to_zval(value: &Value) -> Result<Zval, String> {
 }
 
 pub fn zval_to_value(zval: &Zval) -> Result<Value, String> {
+    zval_to_value_at(zval, 0)
+}
+
+fn zval_to_value_at(zval: &Zval, depth: usize) -> Result<Value, String> {
+    if depth > MAX_CONVERSION_DEPTH {
+        return Err(too_deep());
+    }
     if let Some(i) = zval.long() {
         Ok(Value::Int(i))
     } else if let Some(f) = zval.double() {
@@ -75,12 +103,12 @@ pub fn zval_to_value(zval: &Zval) -> Result<Value, String> {
     } else if let Some(arr) = zval.array() {
         if arr.has_sequential_keys() {
             arr.values()
-                .map(zval_to_value)
+                .map(|v| zval_to_value_at(v, depth + 1))
                 .collect::<Result<Vec<_>, _>>()
                 .map(Value::Array)
         } else {
             arr.iter()
-                .map(|(k, v)| zval_to_value(v).map(|v| (k.to_string(), v)))
+                .map(|(k, v)| zval_to_value_at(v, depth + 1).map(|v| (k.to_string(), v)))
                 .collect::<Result<Vec<_>, _>>()
                 .map(Value::Map)
         }

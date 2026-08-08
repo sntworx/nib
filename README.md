@@ -428,6 +428,8 @@ try {
 
 Callbacks passed to `registerFunc` accept any PHP callable (closure, named function, `[$obj, "method"]`, etc.) and are arity-checked via reflection, so calling one with the wrong number of arguments from a `nib` script fails with a clear error instead of a PHP-level warning.
 
+Values crossing the boundary in either direction may nest at most 128 levels deep; anything deeper (including a self-referential array like `$a["self"] = &$a`, which has no bottom) fails with `value nested deeper than 128 levels`. The conversion walks the structure recursively, so without that cap a recursive array would run off the native stack and take the PHP process down with it.
+
 ## JS/TS
 
 ### Installation
@@ -523,6 +525,8 @@ try {
 ```
 
 Callbacks passed to `registerFunc` are plain JS functions and, unlike the PHP binding, aren't arity-checked — JS itself doesn't error on a mismatched argument count, so `nib` just calls through and lets normal JS semantics apply (missing arguments become `undefined`, extra ones are ignored).
+
+Values crossing the boundary in either direction may nest at most 128 levels deep; anything deeper (including a cyclic object like `o.self = o`, which has no bottom) fails with `value nested deeper than 128 levels`. The conversion walks the structure recursively, so without that cap a cyclic value would overflow the wasm stack — and because that unwind skips Rust destructors, it poisons the whole module, not just the `Nib` instance that hit it.
 
 ## CLI
 
