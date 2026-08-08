@@ -23,6 +23,10 @@ struct Cli {
     /// Measure and print script execution time
     #[arg(long)]
     time: bool,
+
+    /// Check the script (and any --include files) for syntax errors without running it
+    #[arg(long)]
+    check: bool,
 }
 
 fn main() -> ExitCode {
@@ -66,6 +70,10 @@ fn main() -> ExitCode {
         Ok(Value::Str(trimmed.to_string()))
     });
 
+    // Kept around (not just handed to nib.include()) so --check can re-parse
+    // each one on its own - include() itself only ever queues source text,
+    // it doesn't parse until run(), which --check must not call.
+    let mut include_sources = Vec::with_capacity(cli.include.len());
     for path in &cli.include {
         let include_source = match fs::read_to_string(path) {
             Ok(s) => s,
@@ -74,12 +82,28 @@ fn main() -> ExitCode {
                 return ExitCode::FAILURE;
             }
         };
-        nib.include(include_source);
+        nib.include(include_source.clone());
+        include_sources.push(include_source);
     }
 
     if let Err(e) = nib.parse(&source) {
         eprintln!("{}", e);
         return ExitCode::FAILURE;
+    }
+
+    if cli.check {
+        for (path, include_source) in cli.include.iter().zip(&include_sources) {
+            // A throwaway Nib, not `nib` itself - parsing the main script
+            // above already consumed `nib`'s one `ast` slot, and included
+            // sources are only ever parsed as part of run(), never checked
+            // independently otherwise.
+            if let Err(e) = Nib::new().parse(include_source) {
+                eprintln!("{}: {}", path.display(), e);
+                return ExitCode::FAILURE;
+            }
+        }
+        println!("{}: syntax OK", cli.script.display());
+        return ExitCode::SUCCESS;
     }
 
     match cli.ast {

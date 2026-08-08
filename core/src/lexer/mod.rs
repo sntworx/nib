@@ -225,6 +225,10 @@ impl Lexer {
             "case" => Some(TokenKind::Case),
             "default" => Some(TokenKind::Default),
             "in" => Some(TokenKind::In),
+            "try" => Some(TokenKind::Try),
+            "catch" => Some(TokenKind::Catch),
+            "throw" => Some(TokenKind::Throw),
+            "exit" => Some(TokenKind::Exit),
             _ => None,
         };
 

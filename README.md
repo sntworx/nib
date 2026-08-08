@@ -23,6 +23,7 @@ The same language also reaches multiple host runtimes: a PHP extension (`binding
   - [Variables & assignment](#variables--assignment)
   - [Operators](#operators)
   - [Control flow](#control-flow)
+  - [Error handling](#error-handling)
   - [Functions](#functions)
   - [Arrays](#arrays)
   - [Maps](#maps)
@@ -38,6 +39,10 @@ The same language also reaches multiple host runtimes: a PHP extension (`binding
 - [JS/TS](#jsts)
   - [Installation](#installation-1)
   - [Usage](#usage-1)
+- [CLI](#cli)
+  - [Installation](#installation-2)
+  - [Usage](#usage-2)
+  - [Predefined functions](#predefined-functions)
 - [License](#license)
 
 ## Syntax
@@ -135,6 +140,41 @@ match x {
 Each `match` arm is `case` followed by a pattern expression (any expression, not just a literal) and its block; arms are tried top-to-bottom and the first whose pattern equals the subject (same equality as `==`) runs, with no fallthrough. `default` is optional and, if present, must be the last arm — it's a distinct keyword from `if`/`else`'s `else`, not shared with it.
 
 A bare `{ ... }` also works as its own statement — its own scope, not attached to any `if`/`while`/`for`/`func`/`match`.
+
+### Error handling
+
+```
+try {
+    var x = 1 / 0;
+} catch e {
+    println("caught: " + e);   // -> caught: division by zero
+}
+
+try {
+    throw {code: 404, msg: "not found"};
+} catch e {
+    println(e["msg"]);   // -> not found
+}
+```
+
+`try` is always paired with `catch` (no bare `try`, no `finally`), and `catch`'s bound variable has no parens — `catch e { }`, not `catch (e) { }` — matching the bare-binding style `for x in arr` already uses. Only the `try` block itself is guarded; an error raised inside the `catch` block isn't caught by its own `try`.
+
+`throw expr;` can throw any value, not just a string — a thrown `Map`/`Array`/etc. arrives in `catch`'s variable unwrapped, not stringified. Every runtime error is catchable, including the [config](#configuration) limit errors (`maxSteps`, `maxCallDepth`, and so on) — catching one doesn't grant a script more budget, since those counters aren't rewound by the catch.
+
+```
+func check(x) {
+    if x < 0 {
+        println("bad input, stopping");
+        exit;
+    }
+    return x * 2;
+}
+
+check(-1);
+println("never reached");
+```
+
+`exit;` stops the whole program immediately, from anywhere — inside a loop, inside a function call several levels deep, inside a `try` block. It's deliberately **not** catchable by `try`/`catch`, the same way Python's `sys.exit()` isn't meant to be swallowed by an ordinary exception handler — an `exit;` inside a `try` block skips its `catch` entirely rather than triggering it.
 
 ### Functions
 
@@ -434,6 +474,55 @@ try {
 ```
 
 Callbacks passed to `registerFunc` are plain JS functions and, unlike the PHP binding, aren't arity-checked — JS itself doesn't error on a mismatched argument count, so `nib` just calls through and lets normal JS semantics apply (missing arguments become `undefined`, extra ones are ignored).
+
+## CLI
+
+### Installation
+
+Download the `nib` binary for your platform from the [Releases page](https://github.com/sntworx/nib/releases), or build it from source:
+
+```sh
+cargo build --release -p nib
+```
+
+The binary lands at `target/release/nib`.
+
+### Usage
+
+```sh
+nib script.nib                                          # parse + run
+nib script.nib --time                                    # also print execution time
+nib script.nib --include lib/math.nib,lib/string.nib     # load library files first
+nib script.nib --ast                                      # print the parsed AST instead of running
+nib script.nib --ast out.txt                              # write the parsed AST to a file instead
+nib script.nib --check                                    # parse only, report syntax errors, don't run
+```
+
+| Flag | Description |
+| --- | --- |
+| `--include FILE[,FILE...]` | Comma-separated list of `.nib` files loaded via `include()` before the script runs — same order-matters, later-shadows-earlier semantics as `include()` itself (see [Standard library](#standard-library)). |
+| `--ast [FILE]` | Parses the script and prints its AST (Rust `Debug` format) instead of running it — a debugging aid for the parser, not a stable/versioned output format. With no `FILE`, prints to stdout; with `FILE`, writes there instead. |
+| `--time` | Prints wall-clock execution time after a successful run. |
+| `--check` | Parses the script *and* any `--include` files — but doesn't run any of them — and reports the first syntax error found, or `<script>: syntax OK`. Takes priority over `--ast`/`--time` if combined. Useful in CI or an editor's lint-on-save, where you want to catch a broken script without triggering its side effects. |
+
+Exits with status `0` on success, `1` on any failure (a missing/unreadable script or include file, a parse error, or a runtime error) — parse/runtime errors are printed to stderr via their own `Display` (`Parse error at 3:5: ...` / `Runtime error at 1:1: ...`).
+
+The CLI always runs with the default [Configuration](#configuration) limits — unlike the PHP/JS bindings, there's currently no flag to override `maxSteps`/`maxCallDepth`/etc.
+
+### Predefined functions
+
+The `nib` language itself has no builtins at all (see [What's not there](#whats-not-there)) — every capability beyond the language comes from what a host registers via `register_func`. The CLI is one such host, and it registers three functions before running a script:
+
+- **`print(...)`** / **`println(...)`** — stringify each argument (via `nib`'s own `Display`, e.g. an array prints as `[1, 2, 3]`) and join them with a space. `println` adds a trailing newline; `print` doesn't, but flushes stdout immediately so a prompt printed right before a blocking `read()` is actually visible instead of sitting in an unflushed buffer.
+- **`read()`** — blocks reading a single line from stdin, strips the trailing `\n`/`\r\n`, and returns it as a `Str`. Takes no arguments; an I/O failure is a `RuntimeError`.
+
+```
+print("What's your name: ");
+var name = read();
+println("Hello, " + name + "!");
+```
+
+These three aren't part of the language — a different host defines its own set, under whatever names it likes; see [PHP](#php)/[JS/TS](#jsts) above for how those bindings register `print` differently.
 
 ## License
 

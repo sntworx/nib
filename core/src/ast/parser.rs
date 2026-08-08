@@ -1,7 +1,7 @@
 use crate::ast::Ast;
 use crate::ast::types::{
     AstNode, AstNodeKind, BinaryOp, Expr, ForInStmt, ForStmt, FuncDecl, IfStmt, Literal, MatchArm,
-    MatchStmt, ParseError, UnaryOp, VarAssign, WhileStmt,
+    MatchStmt, ParseError, TryStmt, UnaryOp, VarAssign, WhileStmt,
 };
 use crate::lexer::{Token, TokenKind};
 
@@ -127,12 +127,19 @@ impl Parser {
             self.for_stmt()?
         } else if self.check(&TokenKind::Match) {
             AstNodeKind::Match(self.match_stmt()?)
+        } else if self.check(&TokenKind::Try) {
+            AstNodeKind::Try(self.try_stmt()?)
+        } else if self.match_kind(&TokenKind::Throw) {
+            AstNodeKind::Throw(self.throw_stmt()?)
         } else if self.check(&TokenKind::Break) {
             self.break_stmt()?;
             AstNodeKind::Break
         } else if self.check(&TokenKind::Continue) {
             self.continue_stmt()?;
             AstNodeKind::Continue
+        } else if self.match_kind(&TokenKind::Exit) {
+            self.expect(&TokenKind::Semicolon, "after 'exit'")?;
+            AstNodeKind::Exit
         } else {
             AstNodeKind::ExprStmt(self.expr_stmt()?)
         };
@@ -352,6 +359,29 @@ impl Parser {
             arms,
             default_branch,
         })
+    }
+
+    // No bare `try` without `catch` - always paired, same as `for`'s
+    // mandatory parens: one shape, no optional variant to special-case.
+    fn try_stmt(&mut self) -> Result<TryStmt, ParseError> {
+        self.expect(&TokenKind::Try, "")?;
+        let try_block = self.block()?;
+        self.expect(&TokenKind::Catch, "after 'try' block")?;
+        // no parens around the caught variable, same bare style `for x in arr`
+        // uses for its own single binding
+        let catch_var = self.expect_ident("after 'catch'")?;
+        let catch_block = self.block()?;
+        Ok(TryStmt {
+            try_block,
+            catch_var,
+            catch_block,
+        })
+    }
+
+    fn throw_stmt(&mut self) -> Result<Expr, ParseError> {
+        let value = self.expression()?;
+        self.expect(&TokenKind::Semicolon, "after 'throw' value")?;
+        Ok(value)
     }
 
     fn block(&mut self) -> Result<Vec<AstNode>, ParseError> {

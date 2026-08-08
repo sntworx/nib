@@ -339,6 +339,12 @@ pub struct RuntimeError {
     pub message: String,
     pub line: usize,
     pub col: usize,
+    // Set only when raised via a script's own `throw expr;` (see
+    // Interpreter::throw_error) - lets `catch` rebind the original Value, not
+    // just its stringified message. None for every interpreter-raised error
+    // (div by zero, missing key, etc.), which `catch` falls back to wrapping
+    // as a Str of `message`.
+    pub value: Option<Value>,
 }
 
 impl fmt::Display for RuntimeError {

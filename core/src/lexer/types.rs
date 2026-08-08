@@ -25,6 +25,10 @@ pub enum TokenKind {
     Case,
     Default,
     In,
+    Try,
+    Catch,
+    Throw,
+    Exit,
 
     // punctuation
     Semicolon, // ;
@@ -89,6 +93,10 @@ impl fmt::Display for TokenKind {
             TokenKind::Case => write!(f, "'case'"),
             TokenKind::Default => write!(f, "'default'"),
             TokenKind::In => write!(f, "'in'"),
+            TokenKind::Try => write!(f, "'try'"),
+            TokenKind::Catch => write!(f, "'catch'"),
+            TokenKind::Throw => write!(f, "'throw'"),
+            TokenKind::Exit => write!(f, "'exit'"),
 
             TokenKind::Semicolon => write!(f, "';'"),
             TokenKind::LParen => write!(f, "'('"),

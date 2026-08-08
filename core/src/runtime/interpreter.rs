@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::ast::Ast;
 use crate::ast::types::{
     AstNode, AstNodeKind, BinaryOp, Expr, ForInStmt, ForStmt, FuncDecl, IfStmt, Literal, MatchStmt,
-    UnaryOp, VarAssign, WhileStmt,
+    TryStmt, UnaryOp, VarAssign, WhileStmt,
 };
 use crate::runtime::environment::Environment;
 use crate::runtime::helpers::{as_f64, checked_float, values_equal};
@@ -27,6 +27,7 @@ pub struct Interpreter {
     max_array_length: usize,
     max_map_size: usize,
     current_pos: (usize, usize),
+    should_exit: bool,
 }
 
 impl Interpreter {
@@ -41,6 +42,7 @@ impl Interpreter {
             max_array_length: config.max_array_length,
             max_map_size: config.max_map_size,
             current_pos: (0, 0),
+            should_exit: false,
         }
     }
 
@@ -49,6 +51,18 @@ impl Interpreter {
             message,
             line: self.current_pos.0,
             col: self.current_pos.1,
+            value: None,
+        }
+    }
+
+    // `throw expr;` - unlike `error()`, carries the actual thrown Value
+    // through to a `catch`, not just its stringified message.
+    fn throw_error(&self, value: Value) -> RuntimeError {
+        RuntimeError {
+            message: value.to_string(),
+            line: self.current_pos.0,
+            col: self.current_pos.1,
+            value: Some(value),
         }
     }
 
@@ -109,6 +123,7 @@ impl Interpreter {
 
     pub fn run(&mut self, ast: &Ast) -> Result<(), RuntimeError> {
         self.step_count = 0;
+        self.should_exit = false;
         match self.exec_all(ast.nodes())? {
             Flow::Normal => Ok(()),
             Flow::Return(_) => Err(self.error("'return' outside of function".to_string())),
@@ -119,6 +134,9 @@ impl Interpreter {
     }
 
     fn exec(&mut self, node: &AstNode) -> Result<Flow, RuntimeError> {
+        if self.should_exit {
+            return Ok(Flow::Normal);
+        }
         self.current_pos = (node.line, node.col);
         self.tick()?;
         match &node.kind {
@@ -156,6 +174,15 @@ impl Interpreter {
             AstNodeKind::Match(match_stmt) => self.exec_match(match_stmt),
             AstNodeKind::Break => Ok(Flow::Break),
             AstNodeKind::Continue => Ok(Flow::Continue),
+            AstNodeKind::Try(try_stmt) => self.exec_try(try_stmt),
+            AstNodeKind::Throw(expr) => {
+                let value = self.eval(expr)?;
+                Err(self.throw_error(value))
+            }
+            AstNodeKind::Exit => {
+                self.should_exit = true;
+                Ok(Flow::Normal)
+            }
         }
     }
 
@@ -188,8 +215,33 @@ impl Interpreter {
         }
     }
 
+    // Only `try_block`'s own execution is guarded - an error raised inside
+    // `catch_block` propagates normally rather than being caught by its own
+    // try. Every RuntimeError is catchable, including step/call-depth/size
+    // limit errors: those counters are already restored to their pre-call
+    // state by the time the error reaches here (call_function decrements
+    // call_depth before propagating, tick()'s step_count never rewinds
+    // either way), so catching one can't be used to bypass the budget it
+    // guards.
+    fn exec_try(&mut self, try_stmt: &TryStmt) -> Result<Flow, RuntimeError> {
+        match self.exec_block(&try_stmt.try_block) {
+            Ok(flow) => Ok(flow),
+            Err(err) => {
+                let caught = err.value.unwrap_or(Value::Str(err.message));
+                self.env.push_scope();
+                self.env.define(try_stmt.catch_var.clone(), caught);
+                let flow = self.exec_all(&try_stmt.catch_block);
+                self.env.pop_scope();
+                flow
+            }
+        }
+    }
+
     fn exec_while(&mut self, while_stmt: &WhileStmt) -> Result<Flow, RuntimeError> {
         loop {
+            if self.should_exit {
+                return Ok(Flow::Normal);
+            }
             self.tick()?;
             match self.eval(&while_stmt.condition)? {
                 Value::Bool(true) => {}
@@ -224,6 +276,9 @@ impl Interpreter {
             self.exec(init)?;
         }
         loop {
+            if self.should_exit {
+                return Ok(Flow::Normal);
+            }
             self.tick()?;
             let should_continue = match &for_stmt.condition {
                 Some(condition) => match self.eval(condition)? {
@@ -266,6 +321,9 @@ impl Interpreter {
         };
 
         for item in items {
+            if self.should_exit {
+                return Ok(Flow::Normal);
+            }
             self.tick()?;
             self.env.push_scope();
             self.env.define(for_in_stmt.var_name.clone(), item);

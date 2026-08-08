@@ -137,6 +137,15 @@ pub struct MatchStmt {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct TryStmt {
+    pub try_block: Vec<AstNode>,
+    // Fresh binding, scoped to `catch_block` alone (same precedent as
+    // `ForInStmt::var_name`) - doesn't leak past the catch block.
+    pub catch_var: String,
+    pub catch_block: Vec<AstNode>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum AstNodeKind {
     VarAssign(VarAssign),
     ExprStmt(Expr),
@@ -150,6 +159,9 @@ pub enum AstNodeKind {
     Match(MatchStmt),
     Break,
     Continue,
+    Try(TryStmt),
+    Throw(Expr),
+    Exit,
 }
 
 #[derive(Debug, Clone, PartialEq)]
