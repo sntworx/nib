@@ -52,6 +52,7 @@ impl Interpreter {
             line: self.current_pos.0,
             col: self.current_pos.1,
             value: None,
+            fatal: false,
         }
     }
 
@@ -63,6 +64,7 @@ impl Interpreter {
             line: self.current_pos.0,
             col: self.current_pos.1,
             value: Some(value),
+            fatal: false,
         }
     }
 
@@ -73,10 +75,14 @@ impl Interpreter {
     // budget, not a precise iteration count.
     fn tick(&mut self) -> Result<(), RuntimeError> {
         if self.step_count >= self.max_steps {
-            return Err(self.error(format!(
+            let mut err = self.error(format!(
                 "exceeded maximum execution steps of {}",
                 self.max_steps
-            )));
+            ));
+            // uncatchable - the budget a catch block would need is the very
+            // thing that just ran out (see RuntimeError::fatal)
+            err.fatal = true;
+            return Err(err);
         }
         self.step_count += 1;
         Ok(())
@@ -217,15 +223,17 @@ impl Interpreter {
 
     // Only `try_block`'s own execution is guarded - an error raised inside
     // `catch_block` propagates normally rather than being caught by its own
-    // try. Every RuntimeError is catchable, including step/call-depth/size
-    // limit errors: those counters are already restored to their pre-call
-    // state by the time the error reaches here (call_function decrements
-    // call_depth before propagating, tick()'s step_count never rewinds
-    // either way), so catching one can't be used to bypass the budget it
-    // guards.
+    // try. Every RuntimeError is catchable except a fatal one (a blown
+    // max_steps budget - see RuntimeError::fatal), which propagates straight
+    // through. Call-depth and size-limit errors stay catchable and can't be
+    // used to bypass the budget they guard: call_function decrements
+    // call_depth before propagating, and the size checks hold no counter at
+    // all, so both leave the interpreter able to run the catch block
+    // normally.
     fn exec_try(&mut self, try_stmt: &TryStmt) -> Result<Flow, RuntimeError> {
         match self.exec_block(&try_stmt.try_block) {
             Ok(flow) => Ok(flow),
+            Err(err) if err.fatal => Err(err),
             Err(err) => {
                 let caught = err.value.unwrap_or(Value::Str(err.message));
                 self.env.push_scope();

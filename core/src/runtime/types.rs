@@ -347,6 +347,15 @@ pub struct RuntimeError {
     // (div by zero, missing key, etc.), which `catch` falls back to wrapping
     // as a Str of `message`.
     pub value: Option<Value>,
+    // Propagates past `try` instead of being caught. Set only for a blown
+    // `max_steps` budget: alone among the limit errors, its counter stays
+    // exhausted, so a catch block's own first tick() would re-error before
+    // running a single statement - catching it could never do anything but
+    // misreport the failure at the catch block's position. Same reasoning
+    // that keeps `exit;` off this channel entirely. `max_call_depth` and the
+    // size limits are *not* fatal: they leave no counter exhausted, so a
+    // catch after one runs normally.
+    pub fatal: bool,
 }
 
 impl fmt::Display for RuntimeError {
