@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::time::Instant;
@@ -37,14 +38,32 @@ fn main() -> ExitCode {
 
     let mut nib = Nib::new();
 
-    nib.register_func("print", |args: &[Value]| {
-        let rendered = args
-            .iter()
-            .map(|v| v.to_string())
-            .collect::<Vec<_>>()
-            .join(" ");
-        println!("{}", rendered);
+    nib.register_func("println", |args: &[Value]| {
+        println!("{}", render_print(args));
         Ok(Value::Null)
+    });
+
+    nib.register_func("print", |args: &[Value]| {
+        print!("{}", render_print(args));
+        // print! has no trailing newline, so a line-buffered stdout won't
+        // flush it on its own - matters when a prompt is meant to appear
+        // right before a blocking read().
+        io::stdout()
+            .flush()
+            .map_err(|e| format!("failed to flush stdout: {}", e))?;
+        Ok(Value::Null)
+    });
+
+    nib.register_func("read", |args: &[Value]| {
+        if !args.is_empty() {
+            return Err(format!("'read' expects 0 arguments, got {}", args.len()));
+        }
+        let mut input = String::new();
+        io::stdin()
+            .read_line(&mut input)
+            .map_err(|e| format!("failed to read input: {}", e))?;
+        let trimmed = input.trim_end_matches(['\n', '\r']);
+        Ok(Value::Str(trimmed.to_string()))
     });
 
     for path in &cli.include {
@@ -98,4 +117,11 @@ fn main() -> ExitCode {
     }
 
     ExitCode::SUCCESS
+}
+
+fn render_print(args: &[Value]) -> String {
+    args.iter()
+        .map(|v| v.to_string())
+        .collect::<Vec<_>>()
+        .join(" ")
 }

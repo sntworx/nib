@@ -223,6 +223,7 @@ impl Lexer {
             "continue" => Some(TokenKind::Continue),
             "match" => Some(TokenKind::Match),
             "case" => Some(TokenKind::Case),
+            "default" => Some(TokenKind::Default),
             "in" => Some(TokenKind::In),
             _ => None,
         };

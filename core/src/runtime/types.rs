@@ -206,7 +206,10 @@ impl Value {
             // non-finite-is-an-error invariant every other float path enforces.
             (Value::Str(s), "to_float") => {
                 if !args.is_empty() {
-                    return Err(format!("'to_float' expects 0 arguments, got {}", args.len()));
+                    return Err(format!(
+                        "'to_float' expects 0 arguments, got {}",
+                        args.len()
+                    ));
                 }
                 let parsed = s
                     .parse::<f64>()
@@ -215,7 +218,10 @@ impl Value {
             }
             (Value::Int(v), "to_float") => {
                 if !args.is_empty() {
-                    return Err(format!("'to_float' expects 0 arguments, got {}", args.len()));
+                    return Err(format!(
+                        "'to_float' expects 0 arguments, got {}",
+                        args.len()
+                    ));
                 }
                 Ok(MethodResult::Pure(Value::Float(*v as f64)))
             }

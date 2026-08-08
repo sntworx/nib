@@ -23,6 +23,7 @@ pub enum TokenKind {
     Continue,
     Match,
     Case,
+    Default,
     In,
 
     // punctuation
@@ -86,6 +87,7 @@ impl fmt::Display for TokenKind {
             TokenKind::Continue => write!(f, "'continue'"),
             TokenKind::Match => write!(f, "'match'"),
             TokenKind::Case => write!(f, "'case'"),
+            TokenKind::Default => write!(f, "'default'"),
             TokenKind::In => write!(f, "'in'"),
 
             TokenKind::Semicolon => write!(f, "';'"),

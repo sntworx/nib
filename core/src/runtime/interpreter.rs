@@ -182,8 +182,8 @@ impl Interpreter {
                 return self.exec_block(&arm.body);
             }
         }
-        match &match_stmt.else_branch {
-            Some(else_branch) => self.exec_block(else_branch),
+        match &match_stmt.default_branch {
+            Some(default_branch) => self.exec_block(default_branch),
             None => Ok(Flow::Normal),
         }
     }

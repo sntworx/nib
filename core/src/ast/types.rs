@@ -133,7 +133,7 @@ pub struct MatchArm {
 pub struct MatchStmt {
     pub subject: Expr,
     pub arms: Vec<MatchArm>,
-    pub else_branch: Option<Vec<AstNode>>,
+    pub default_branch: Option<Vec<AstNode>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

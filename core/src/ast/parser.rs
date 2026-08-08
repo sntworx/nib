@@ -328,16 +328,16 @@ impl Parser {
         self.expect(&TokenKind::LBrace, "to start match body")?;
 
         let mut arms = Vec::new();
-        let mut else_branch = None;
+        let mut default_branch = None;
         while !self.check(&TokenKind::RBrace) && !self.is_at_end() {
-            if self.match_kind(&TokenKind::Else) {
-                if else_branch.is_some() {
-                    return Err(self.error("match can only have one 'else' arm"));
+            if self.match_kind(&TokenKind::Default) {
+                if default_branch.is_some() {
+                    return Err(self.error("match can only have one 'default' arm"));
                 }
-                else_branch = Some(self.block()?);
+                default_branch = Some(self.block()?);
             } else {
-                if else_branch.is_some() {
-                    return Err(self.error("'else' must be the last arm in match"));
+                if default_branch.is_some() {
+                    return Err(self.error("'default' must be the last arm in match"));
                 }
                 self.expect(&TokenKind::Case, "before match arm pattern")?;
                 let pattern = self.expression()?;
@@ -350,7 +350,7 @@ impl Parser {
         Ok(MatchStmt {
             subject,
             arms,
-            else_branch,
+            default_branch,
         })
     }
 

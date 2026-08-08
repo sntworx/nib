@@ -122,7 +122,7 @@ match x {
     case 2 {
         // ...
     }
-    else {
+    default {
         // ...
     }
 }
@@ -132,7 +132,7 @@ match x {
 
 `for x in arr` iterates a value-type array by value: `arr` is evaluated once up front (reassigning it mid-loop doesn't change what's iterated), and `x` is a fresh binding each iteration that doesn't alias back into the array. It's array-only — no direct string or map iteration; use `for c in s.chars() { }` for strings and `for k in m.keys() { }`/`for v in m.values() { }` for maps.
 
-Each `match` arm is `case` followed by a pattern expression (any expression, not just a literal) and its block; arms are tried top-to-bottom and the first whose pattern equals the subject (same equality as `==`) runs, with no fallthrough. `else` is optional and, if present, must be the last arm.
+Each `match` arm is `case` followed by a pattern expression (any expression, not just a literal) and its block; arms are tried top-to-bottom and the first whose pattern equals the subject (same equality as `==`) runs, with no fallthrough. `default` is optional and, if present, must be the last arm — it's a distinct keyword from `if`/`else`'s `else`, not shared with it.
 
 A bare `{ ... }` also works as its own statement — its own scope, not attached to any `if`/`while`/`for`/`func`/`match`.
 
