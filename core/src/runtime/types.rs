@@ -27,20 +27,38 @@ impl fmt::Debug for NativeFunction {
     }
 }
 
+// Arrays and maps stay *value* types to a script - `var b = a; b[0] = 1;`
+// must never touch `a` - but the Rc means that promise costs a refcount bump
+// instead of a deep copy. Every write goes through `Rc::make_mut`, which
+// clones only when the data is actually shared, so the observable semantics
+// are unchanged while `a.push(x)` stops being O(len) and `a = [a, a]` stops
+// physically duplicating anything. Nothing may mutate the inner Vec except
+// through `make_mut`: an aliased `&mut` would leak sharing into script-visible
+// behavior, which is the one way this representation can go wrong.
 #[derive(Debug, Clone)]
 pub enum Value {
     Int(i64),
     Float(f64),
     Str(String),
     Bool(bool),
-    Array(Vec<Value>),
-    Map(Vec<(String, Value)>),
+    Array(Rc<Vec<Value>>),
+    Map(Rc<Vec<(String, Value)>>),
     Function(Rc<Function>),
     NativeFunction(Rc<NativeFunction>),
     Null,
 }
 
 impl Value {
+    // Public: a host building a return value for `register_func` shouldn't
+    // have to know the payload is behind an Rc.
+    pub fn array(items: Vec<Value>) -> Value {
+        Value::Array(Rc::new(items))
+    }
+
+    pub fn map(pairs: Vec<(String, Value)>) -> Value {
+        Value::Map(Rc::new(pairs))
+    }
+
     // Used in "wrong type" error messages instead of the value's own Display,
     // which is unescaped - avoids echoing script-controlled content (e.g.
     // terminal escape sequences) through a diagnostic path.
@@ -56,6 +74,15 @@ impl Value {
             Value::NativeFunction(_) => "native function",
             Value::Null => "null",
         }
+    }
+
+    // Whether `call_method` will mutate its receiver. Knowing this *before*
+    // dispatch lets the interpreter hand over a uniquely-owned receiver (see
+    // `detach_binding`), so `Rc::make_mut` mutates in place rather than
+    // deep-copying - the difference between O(1) and O(len) per `push`. Keep
+    // in sync with the `MethodResult::Mutating` arms below.
+    pub(crate) fn method_mutates(name: &str) -> bool {
+        matches!(name, "push" | "pop" | "remove")
     }
 
     // Dispatch for `target.method(args)` - a small, closed set of
@@ -80,14 +107,16 @@ impl Value {
                 if args.len() != 1 {
                     return Err(format!("'push' expects 1 argument, got {}", args.len()));
                 }
-                items.push(args[0].clone());
+                Rc::make_mut(items).push(args[0].clone());
+                // Rc clone, not a deep copy - `push` evaluating to the new
+                // array used to cost a full duplicate of it.
                 Ok(MethodResult::Mutating(Value::Array(items.clone())))
             }
             (Value::Array(items), "pop") => {
                 if !args.is_empty() {
                     return Err(format!("'pop' expects 0 arguments, got {}", args.len()));
                 }
-                let popped = items
+                let popped = Rc::make_mut(items)
                     .pop()
                     .ok_or_else(|| "cannot pop from an empty array".to_string())?;
                 Ok(MethodResult::Mutating(popped))
@@ -138,7 +167,7 @@ impl Value {
                     .iter()
                     .position(|(k, _)| *k == key)
                     .ok_or_else(|| format!("key '{}' not found in map", key))?;
-                let (_, removed) = pairs.remove(pos);
+                let (_, removed) = Rc::make_mut(pairs).remove(pos);
                 Ok(MethodResult::Mutating(removed))
             }
             (Value::Map(pairs), "keys") => {
@@ -146,14 +175,14 @@ impl Value {
                     return Err(format!("'keys' expects 0 arguments, got {}", args.len()));
                 }
                 let keys = pairs.iter().map(|(k, _)| Value::Str(k.clone())).collect();
-                Ok(MethodResult::Pure(Value::Array(keys)))
+                Ok(MethodResult::Pure(Value::array(keys)))
             }
             (Value::Map(pairs), "values") => {
                 if !args.is_empty() {
                     return Err(format!("'values' expects 0 arguments, got {}", args.len()));
                 }
                 let values = pairs.iter().map(|(_, v)| v.clone()).collect();
-                Ok(MethodResult::Pure(Value::Array(values)))
+                Ok(MethodResult::Pure(Value::array(values)))
             }
             (Value::Str(s), "len") => {
                 if !args.is_empty() {
@@ -169,7 +198,7 @@ impl Value {
                     return Err(format!("'chars' expects 0 arguments, got {}", args.len()));
                 }
                 let chars = s.chars().map(|c| Value::Str(c.to_string())).collect();
-                Ok(MethodResult::Pure(Value::Array(chars)))
+                Ok(MethodResult::Pure(Value::array(chars)))
             }
             (Value::Str(s), "upper") => {
                 if !args.is_empty() {
@@ -285,14 +314,18 @@ impl PartialEq for Value {
             (Value::Float(a), Value::Float(b)) => a == b,
             (Value::Str(a), Value::Str(b)) => a == b,
             (Value::Bool(a), Value::Bool(b)) => a == b,
-            (Value::Array(a), Value::Array(b)) => a == b,
+            // ptr_eq first: after copy-on-write, comparing a value against a
+            // copy of itself is the common case, and identity settles it
+            // without walking either side.
+            (Value::Array(a), Value::Array(b)) => Rc::ptr_eq(a, b) || a == b,
             // Order-independent: unlike Vec<(String,Value)>'s own derived
             // PartialEq, two maps with the same keys/values in different
             // insertion order must compare equal.
             (Value::Map(a), Value::Map(b)) => {
-                a.len() == b.len()
-                    && a.iter()
-                        .all(|(k, v)| b.iter().any(|(k2, v2)| k == k2 && v == v2))
+                Rc::ptr_eq(a, b)
+                    || (a.len() == b.len()
+                        && a.iter()
+                            .all(|(k, v)| b.iter().any(|(k2, v2)| k == k2 && v == v2)))
             }
             (Value::Function(a), Value::Function(b)) => Rc::ptr_eq(a, b),
             (Value::NativeFunction(a), Value::NativeFunction(b)) => Rc::ptr_eq(a, b),

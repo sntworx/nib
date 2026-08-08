@@ -81,14 +81,14 @@ fn value_to_js_at(value: &Value, depth: usize) -> Result<JsValue, String> {
         Value::Null => JsValue::NULL,
         Value::Array(items) => {
             let arr = Array::new();
-            for item in items {
+            for item in items.iter() {
                 arr.push(&value_to_js_at(item, depth + 1)?);
             }
             arr.into()
         }
         Value::Map(pairs) => {
             let obj = Object::new();
-            for (k, v) in pairs {
+            for (k, v) in pairs.iter() {
                 Reflect::set(&obj, &JsValue::from_str(k), &value_to_js_at(v, depth + 1)?)
                     .map_err(|e| describe_js_error(&e))?;
             }
@@ -127,7 +127,7 @@ fn js_to_value_at(js: &JsValue, depth: usize) -> Result<Value, String> {
             .iter()
             .map(|item| js_to_value_at(&item, depth + 1))
             .collect::<Result<Vec<_>, _>>()
-            .map(Value::Array)
+            .map(Value::array)
     } else if js.is_object() {
         let obj = Object::from(js.clone());
         Object::keys(&obj)
@@ -138,7 +138,7 @@ fn js_to_value_at(js: &JsValue, depth: usize) -> Result<Value, String> {
                 Ok((key, js_to_value_at(&value, depth + 1)?))
             })
             .collect::<Result<Vec<_>, _>>()
-            .map(Value::Map)
+            .map(Value::map)
     } else {
         Err("unsupported JS value returned from callback".to_string())
     }

@@ -32,6 +32,20 @@ impl Environment {
         self.scopes.iter().rev().find_map(|scope| scope.get(name))
     }
 
+    // Takes the value out of a binding, leaving the name bound to Null.
+    // Used to drop the environment's own Rc reference so the interpreter's
+    // copy becomes uniquely owned and `Rc::make_mut` can mutate in place
+    // instead of deep-copying - the caller MUST write the value back (or
+    // restore it on failure), or the variable is left holding Null.
+    pub fn take(&mut self, name: &str) -> Option<Value> {
+        for scope in self.scopes.iter_mut().rev() {
+            if let Some(slot) = scope.get_mut(name) {
+                return Some(std::mem::replace(slot, Value::Null));
+            }
+        }
+        None
+    }
+
     // Returns a plain message (rather than a RuntimeError) since Environment
     // has no access to the interpreter's current source position.
     pub fn assign(&mut self, name: &str, value: Value) -> Result<(), String> {

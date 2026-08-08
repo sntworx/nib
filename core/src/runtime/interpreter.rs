@@ -328,13 +328,13 @@ impl Interpreter {
             }
         };
 
-        for item in items {
+        for item in items.iter() {
             if self.should_exit {
                 return Ok(Flow::Normal);
             }
             self.tick()?;
             self.env.push_scope();
-            self.env.define(for_in_stmt.var_name.clone(), item);
+            self.env.define(for_in_stmt.var_name.clone(), item.clone());
             let flow = self.exec_all(&for_in_stmt.body);
             self.env.pop_scope();
             match flow? {
@@ -405,7 +405,7 @@ impl Interpreter {
                     .iter()
                     .map(|e| self.eval(e))
                     .collect::<Result<Vec<_>, _>>()?;
-                let value = Value::Array(values);
+                let value = Value::array(values);
                 self.check_size_limits(&value)?;
                 Ok(value)
             }
@@ -418,7 +418,7 @@ impl Interpreter {
                         None => entries.push((key.clone(), value)),
                     }
                 }
-                let value = Value::Map(entries);
+                let value = Value::map(entries);
                 self.check_size_limits(&value)?;
                 Ok(value)
             }
@@ -639,7 +639,7 @@ impl Interpreter {
                             items.len()
                         )));
                     }
-                    items[idx as usize] = new_elem;
+                    Rc::make_mut(items)[idx as usize] = new_elem;
                     Ok(container)
                 }
                 other => Err(self.error(format!(
@@ -649,6 +649,7 @@ impl Interpreter {
             },
             Value::Map(pairs) => match index_val {
                 Value::Str(key) => {
+                    let pairs = Rc::make_mut(pairs);
                     match pairs.iter_mut().find(|(k, _)| *k == key) {
                         Some((_, v)) => *v = new_elem,
                         None => pairs.push((key, new_elem)),
@@ -717,7 +718,11 @@ impl Interpreter {
                     Some(op) => self.apply_binary_op(op, current_elem, rhs)?,
                     None => rhs,
                 };
-                items[idx_usize] = new_elem.clone();
+                // Safe to detach here: array index-assignment can't grow
+                // the array, so nothing between this and the write-back can
+                // fail and strand the binding.
+                self.detach_binding(object);
+                Rc::make_mut(&mut items)[idx_usize] = new_elem.clone();
                 self.assign_to_target(object, Value::Array(items))?;
                 Ok(new_elem)
             }
@@ -747,8 +752,8 @@ impl Interpreter {
                     None => self.eval(value)?,
                 };
                 match existing {
-                    Some(pos) => pairs[pos].1 = new_elem.clone(),
-                    None => pairs.push((key, new_elem.clone())),
+                    Some(pos) => Rc::make_mut(&mut pairs)[pos].1 = new_elem.clone(),
+                    None => Rc::make_mut(&mut pairs).push((key, new_elem.clone())),
                 }
                 let patched = Value::Map(pairs);
                 self.check_size_limits(&patched)?;
@@ -756,6 +761,42 @@ impl Interpreter {
                 Ok(new_elem)
             }
             other => Err(self.error(format!("cannot index into {}", other.type_name()))),
+        }
+    }
+
+    // Drops the environment's own reference to a bare identifier's binding so
+    // the interpreter's copy of the value becomes uniquely owned, letting
+    // `Rc::make_mut` mutate in place instead of deep-copying. Returns whether
+    // anything was detached; if so the caller MUST write the value back
+    // (`assign_to_target`) or restore it, since the binding now holds Null.
+    // Aliased values (`var b = a;`) still have a refcount above 1 afterwards,
+    // so make_mut correctly copies and `b` is left untouched.
+    // `push` is the only mutating method that can grow a collection past a
+    // size limit, and once `make_mut` has mutated in place there's no
+    // pre-mutation copy left to roll back to - so its room is checked
+    // *before* the mutation instead of the result being checked after.
+    fn check_push_room(&self, receiver: &Value) -> Result<(), RuntimeError> {
+        match receiver {
+            Value::Array(items) if items.len() >= self.max_array_length => {
+                Err(self.error(format!(
+                    "array exceeds maximum length of {} elements",
+                    self.max_array_length
+                )))
+            }
+            _ => Ok(()),
+        }
+    }
+
+    fn detach_binding(&mut self, target: &Expr) -> bool {
+        match target {
+            Expr::Ident(name) => self.env.take(name).is_some(),
+            _ => false,
+        }
+    }
+
+    fn restore_binding(&mut self, target: &Expr, value: Value) {
+        if let Expr::Ident(name) = target {
+            let _ = self.env.assign(name, value);
         }
     }
 
@@ -774,9 +815,24 @@ impl Interpreter {
             .map(|arg| self.eval(arg))
             .collect::<Result<Vec<_>, _>>()?;
 
-        let result = receiver
-            .call_method(method, &arg_values)
-            .map_err(|msg| self.error(msg))?;
+        if method == "push" {
+            self.check_push_room(&receiver)?;
+        }
+
+        // Only after the args are evaluated - they may still read the binding
+        // (`a.push(a.len())`), and detaching earlier would hand them a Null.
+        let detached = Value::method_mutates(method) && self.detach_binding(target);
+
+        let result = match receiver.call_method(method, &arg_values) {
+            Ok(result) => result,
+            Err(msg) => {
+                // put the binding back, or a failed `pop()` leaves it Null
+                if detached {
+                    self.restore_binding(target, receiver);
+                }
+                return Err(self.error(msg));
+            }
+        };
 
         match result {
             MethodResult::Pure(value) => {
@@ -784,7 +840,10 @@ impl Interpreter {
                 Ok(value)
             }
             MethodResult::Mutating(value) => {
-                self.check_size_limits(&receiver)?;
+                // No size check here: `push` was pre-checked above (the only
+                // grower), and pop/remove only shrink. Checking after the fact
+                // would be worse than useless - detach_binding has already
+                // left the binding Null, so an error here would strand it.
                 self.assign_to_target(target, receiver)?;
                 Ok(value)
             }

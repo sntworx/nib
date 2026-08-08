@@ -69,7 +69,7 @@ fn value_to_zval_at(value: &Value, depth: usize) -> Result<Zval, String> {
             .map_err(|e| e.to_string())?,
         Value::Map(pairs) => {
             let mut ht = ZendHashTable::new();
-            for (k, v) in pairs {
+            for (k, v) in pairs.iter() {
                 ht.insert(k.as_str(), value_to_zval_at(v, depth + 1)?)
                     .map_err(|e| e.to_string())?;
             }
@@ -105,12 +105,12 @@ fn zval_to_value_at(zval: &Zval, depth: usize) -> Result<Value, String> {
             arr.values()
                 .map(|v| zval_to_value_at(v, depth + 1))
                 .collect::<Result<Vec<_>, _>>()
-                .map(Value::Array)
+                .map(Value::array)
         } else {
             arr.iter()
                 .map(|(k, v)| zval_to_value_at(v, depth + 1).map(|v| (k.to_string(), v)))
                 .collect::<Result<Vec<_>, _>>()
-                .map(Value::Map)
+                .map(Value::map)
         }
     } else {
         Err("unsupported PHP value returned from callback".to_string())
