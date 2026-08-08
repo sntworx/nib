@@ -7,15 +7,22 @@ use crate::runtime::RuntimeError;
 pub struct Config {
     // Caps recursive function call depth; exceeding it is a RuntimeError
     // ("stack overflow: exceeded maximum call depth of {}"), not a native
-    // stack overflow that would abort the process.
+    // stack overflow that would abort the process. 200 leaves ~4x margin
+    // under the ~800 frames a release build actually survives on a
+    // constrained 1MiB stack (wasm32's default, and small worker threads) -
+    // the previous default of 1000 overflowed it outright, aborting the
+    // host instead of erroring. Don't raise the default without
+    // re-verifying against a small-stack thread.
     pub max_call_depth: usize,
     // Caps recursive-descent parser nesting so malformed/malicious input
     // can't overflow the real stack while parsing. Much lower than
     // `max_call_depth` since one grammar level burns several real stack
     // frames here, not one - 128 is verified safe with margin on a
     // constrained 1MiB stack (a small worker-thread stack, not just the
-    // CLI's ~8MiB main thread); 1000 was not. Don't raise the default
-    // without re-verifying against a small-stack thread.
+    // CLI's ~8MiB main thread); 1000 was not. Verified against release
+    // builds - a debug build's much larger frames can overflow 1MiB while
+    // still under this limit. Don't raise the default without
+    // re-verifying against a small-stack thread.
     pub max_parse_depth: usize,
     // Caps total interpreter work per `run()` call (one tick per statement
     // executed and per loop iteration) so a script that loops forever (e.g.
@@ -46,7 +53,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Config {
-            max_call_depth: 1000,
+            max_call_depth: 200,
             max_parse_depth: 128,
             max_steps: 1_000_000,
             max_string_length: 1_000_000,
