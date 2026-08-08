@@ -336,8 +336,8 @@ The commands below use [`just`](https://github.com/casey/just) (`cargo install j
 ### Building the CLI
 
 ```sh
-just cli-build-musl      # -> dist/cli/nib-cli-linux  (statically linked, runs on any x86_64 Linux)
-just cli-build-macos     # -> dist/cli/nib-cli-macos  (host arch only — Intel or Apple Silicon)
+just cli-build-musl      # -> dist/cli/nib-v0.1.0-x86_64-unknown-linux-musl  (static, any x86_64 Linux)
+just cli-build-macos     # -> dist/cli/nib-v0.1.0-<host-triple>              (host arch only)
 ```
 
 Without `just`, the plain equivalent is `cargo build -p nib --release` — the binary lands at `target/release/nib` (or `target/x86_64-unknown-linux-musl/release/nib` for the musl target).

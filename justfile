@@ -4,15 +4,27 @@ nib *args:
 
 # build cli (musl)
 cli-build-musl:
-  cargo build -p nib --release --target x86_64-unknown-linux-musl
+  #!/usr/bin/env bash
+  set -euo pipefail
+  version=$(sed -n 's/^version *= *"\(.*\)"/\1/p' nib/Cargo.toml | head -n1)
+  target=x86_64-unknown-linux-musl
+  cargo build -p nib --release --target "$target"
   mkdir -p dist/cli
-  cp target/x86_64-unknown-linux-musl/release/nib dist/cli/nib-cli-linux
+  cp "target/$target/release/nib" "dist/cli/nib-v${version}-${target}"
+  echo "dist/cli/nib-v${version}-${target}"
 
 # build cli (macos)
 cli-build-macos:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  version=$(sed -n 's/^version *= *"\(.*\)"/\1/p' nib/Cargo.toml | head -n1)
+  # host triple, not a bare "macos" - this only ever builds for the host arch,
+  # so the name has to say which one (Intel vs Apple Silicon)
+  target=$(rustc -vV | sed -n 's/^host: //p')
   cargo build -p nib --release
   mkdir -p dist/cli
-  cp target/release/nib dist/cli/nib-cli-macos
+  cp target/release/nib "dist/cli/nib-v${version}-${target}"
+  echo "dist/cli/nib-v${version}-${target}"
 
 # build php bindings for local architecture
 bindings-php-build:
