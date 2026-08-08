@@ -19,6 +19,12 @@ pub struct Nib {
     config: Config,
 }
 
+impl Default for Nib {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Nib {
     pub fn new() -> Self {
         Self::with_config(Config::default())

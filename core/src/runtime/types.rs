@@ -11,12 +11,14 @@ pub struct Function {
     pub body: Vec<AstNode>,
 }
 
+pub type NativeCallback = Box<dyn Fn(&[Value]) -> Result<Value, String>>;
+
 // Injected into Nib's global scope by the host. Returns a plain message on
 // failure, not a RuntimeError, since it has no access to the interpreter's
 // source position (see `Environment::assign`, `checked_float`).
 pub struct NativeFunction {
     pub name: String,
-    pub func: Box<dyn Fn(&[Value]) -> Result<Value, String>>,
+    pub func: NativeCallback,
 }
 
 impl fmt::Debug for NativeFunction {

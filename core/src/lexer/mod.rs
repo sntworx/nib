@@ -162,7 +162,7 @@ impl Lexer {
         }
         // optional fractional part - only consume '.' if followed by a digit,
         // so "some_object.property" doesn't get mangled near numbers
-        if self.peek() == Some('.') && self.peek_at(1).map_or(false, |c| c.is_ascii_digit()) {
+        if self.peek() == Some('.') && self.peek_at(1).is_some_and(|c| c.is_ascii_digit()) {
             is_float = true;
             text.push('.');
             self.advance();

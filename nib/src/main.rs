@@ -1,6 +1,6 @@
 use std::fs;
 use std::io::{self, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::Instant;
 
@@ -121,7 +121,7 @@ fn main() -> ExitCode {
                 println!("Execution time: {:.3?}", elapsed);
             }
         }
-        Some(path) if path == PathBuf::from("-") => {
+        Some(path) if path == Path::new("-") => {
             let ast = nib
                 .ast()
                 .expect("ast is always set after a successful parse");
