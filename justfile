@@ -1,60 +1,61 @@
-# Nib
-
+# run nib cli
 nib *args:
   cargo run -p nib -- {{args}}
 
-# PHP Bindings
+# build cli (musl)
+cli-build-musl:
+  cargo build -p nib --release --target x86_64-unknown-linux-musl
+  mkdir -p dist/cli
+  cp target/x86_64-unknown-linux-musl/release/nib dist/cli/nib-cli-linux
 
-build-bindings-php:
+# build cli (macos)
+cli-build-macos:
+  cargo build -p nib --release
+  mkdir -p dist/cli
+  cp target/release/nib dist/cli/nib-cli-macos
+
+# build php bindings for local architecture
+bindings-php-build:
   cargo build -p bindings-php --release
 
-install-php-extension:
+# package php extension (dist/php-nib)
+bindings-php-package:
+  mkdir -p dist/php-nib
+  ./bindings-php/scripts/package.sh
+
+# install php extension in local php instance
+php-extension-install:
   cd bindings-php && cargo php install --release --yes
 
-remove-php-extension:
+# remove php extension from local php instance
+php-extension-remove:
   cd bindings-php && cargo php remove --yes
 
-update-php-extension:
+# update (remove and install) php extension in local php instance
+php-extension-update:
   cd bindings-php && cargo php remove --yes && cargo php install --release --yes
 
-# Builds + names the release cdylib as dist/php-nib/php_nib-v<version>-php<major.minor>-<target>.<ext>.
-# Target defaults to the host triple; PHP version comes from whichever `php` is on PATH.
-package-bindings-php target='':
-  ./bindings-php/scripts/package.sh {{target}}
-
-package-bindings-php-macos-arm64:
-  ./bindings-php/scripts/package.sh aarch64-apple-darwin
-
-package-bindings-php-linux-x64-gnu:
-  ./bindings-php/scripts/package.sh x86_64-unknown-linux-gnu
-
-package-bindings-php-linux-x64-musl:
-  ./bindings-php/scripts/package.sh x86_64-unknown-linux-musl
-
-# Generates dist/php-nib/SHA256SUMS over whatever packages are currently there.
-# Uses sha256sum on Linux, shasum -a 256 on macOS (whichever is on PATH).
-checksum-bindings-php:
-  ./bindings-php/scripts/checksum.sh
-
-# TS Bindings
-
-build-bindings-ts-web:
+# build TS bindings for web (bindings-ts/pkg/web)
+bindings-ts-build-web:
   cd bindings-ts && wasm-pack build --release --target web --out-dir pkg/web
 
-build-bindings-ts-bundler:
+# build TS bindings for bundler (bindings-ts/pkg/bundler)
+bindings-ts-build-bundler:
   cd bindings-ts && wasm-pack build --release --target bundler --out-dir pkg/bundler
 
-build-bindings-ts-node:
+# build TS bindings for node (bindings-ts/pkg/node)
+bindings-ts-build-node:
   cd bindings-ts && wasm-pack build --release --target nodejs --out-dir pkg/node
 
-build-bindings-ts: build-bindings-ts-web build-bindings-ts-bundler build-bindings-ts-node
+# build all TS bindings (bindings-ts/pkg/*)
+bindings-ts-build-all: bindings-ts-build-web bindings-ts-build-bundler bindings-ts-build-node
   rm -f bindings-ts/pkg/*/.gitignore
 
-pack-bindings-ts: build-bindings-ts
+# pack TS bindings into npm tarball
+bindings-ts-pack: bindings-ts-build-all
   mkdir -p dist/ts-nib
   cd bindings-ts && npm pack --pack-destination ../dist/ts-nib
 
-# Cargo
-
+# run cargo FMT
 cargo-fmt:
     cargo +nightly fmt

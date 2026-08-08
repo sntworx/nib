@@ -33,6 +33,11 @@ The same language also reaches multiple host runtimes: a PHP extension (`binding
 - [Workspace layout](#workspace-layout)
 - [Standard library](#standard-library)
 - [Configuration](#configuration)
+- [Building from source](#building-from-source)
+  - [Requirements](#requirements)
+  - [Building the CLI](#building-the-cli)
+  - [Building the PHP extension](#building-the-php-extension)
+  - [Building the npm package](#building-the-npm-package)
 - [PHP](#php)
   - [Installation](#installation)
   - [Usage](#usage)
@@ -314,17 +319,59 @@ Both host bindings accept an optional config when constructing a `Nib` instance 
 | `maxArrayLength` | `1000000` | Caps a single array's element count, checked wherever an array is built or grows — literals, `push()`, and methods that return an array (`chars()`, `keys()`, `values()`). Exceeding it fails with `"array exceeds maximum length of N elements"`. |
 | `maxMapSize` | `1000000` | Caps a single map's entry count, checked whenever a *new* key is inserted — literals and `m[newKey] = x`. Overwriting an existing key never grows the map, so it's never rejected regardless of this limit. Exceeding it fails with `"map exceeds maximum size of N entries"`. |
 
+## Building from source
+
+### Requirements
+
+- **Rust 1.85+** (edition 2024) — install via [rustup](https://rustup.rs).
+- **CLI** — nothing beyond Rust itself. The musl build additionally needs the `x86_64-unknown-linux-musl` target (`rustup target add x86_64-unknown-linux-musl`) and a musl cross toolchain for `musl-gcc` (e.g. the `musl-tools` package on Debian/Ubuntu).
+- **PHP extension** — PHP 8.1+ with development headers, and `php-config` on `PATH` (`ext-php-rs`'s build script shells out to it to detect the Zend API version and NTS/ZTS mode). [`cargo-php`](https://github.com/davidcole1340/ext-php-rs) (`cargo install cargo-php`) is only needed for the install/update recipes below, not for a plain build.
+- **npm package** — [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) (`cargo install wasm-pack`) and the `wasm32-unknown-unknown` Rust target (`rustup target add wasm32-unknown-unknown` — `wasm-pack` will also offer to install it for you if it's missing).
+
+The commands below use [`just`](https://github.com/casey/just) (`cargo install just`), which just wraps the underlying `cargo`/`wasm-pack`/`cargo-php` invocations — see the [`justfile`](justfile) directly if you'd rather not install it.
+
+### Building the CLI
+
+```sh
+just cli-build-musl      # -> dist/cli/nib-cli-linux  (statically linked, runs on any x86_64 Linux)
+just cli-build-macos     # -> dist/cli/nib-cli-macos  (host arch only — Intel or Apple Silicon)
+```
+
+Without `just`, the plain equivalent is `cargo build -p nib --release` — the binary lands at `target/release/nib` (or `target/x86_64-unknown-linux-musl/release/nib` for the musl target).
+
+### Building the PHP extension
+
+```sh
+just bindings-php-build      # compile only -> target/release/libphp_nib.so (.dylib on macOS)
+just bindings-php-package    # compile + package -> dist/php-nib/php_nib-v<version>-php<major.minor>-<target>.so
+just php-extension-install   # compile, then install + enable it in your local PHP
+just php-extension-update    # remove + reinstall, e.g. after pulling changes
+```
+
+`bindings-php-package` wraps [`bindings-php/scripts/package.sh`](bindings-php/scripts/package.sh) and always builds for the host target — it's the same naming convention used for release artifacts. The compiled extension is tied to the exact PHP minor version and NTS/ZTS mode it was built against — see [PHP](#php) below for how a distributed release build encodes the PHP version and target triple in its filename.
+
+### Building the npm package
+
+```sh
+just bindings-ts-build-all   # -> bindings-ts/pkg/{web,bundler,node}
+just bindings-ts-pack        # -> dist/ts-nib/*.tgz, ready for `npm publish` or a local `npm install`
+```
+
+Individual targets (`bindings-ts-build-web`/`bindings-ts-build-bundler`/`bindings-ts-build-node`) are also available if you only need one.
+
 ## PHP
 
 ### Installation
 
-1. Download the extension build for your platform from the [Releases page](https://github.com/sntworx/nib/releases). Release builds are always packaged as `.so`, even the macOS one (PHP looks for a `.so` file regardless of platform, even though Rust itself produces a `.dylib` there).
+1. Download the extension build for your platform from the [Releases page](https://github.com/sntworx/nib/releases) — glibc and musl builds for PHP 8.3/8.4/8.5, or [build it from source](#building-the-php-extension).
 2. Copy it into your PHP install's `extension_dir` (find that path with `php -i | grep extension_dir`).
 3. Enable it in `php.ini`:
    ```ini
    extension=php_nib.so
    ```
 4. Confirm it loaded: `php -m | grep -i nib`.
+
+[`bindings-php/stubs/nib_stubs.php`](bindings-php/stubs/nib_stubs.php) is an IDE-only stub for the `Nib` class — point your editor/static analyzer (PhpStorm, Intelephense, PHPStan, Psalm, ...) at it for autocompletion and type hints. It's never `require`d/`include`d; the real class comes from the compiled extension at runtime.
 
 ### Usage
 
@@ -479,13 +526,7 @@ Callbacks passed to `registerFunc` are plain JS functions and, unlike the PHP bi
 
 ### Installation
 
-Download the `nib` binary for your platform from the [Releases page](https://github.com/sntworx/nib/releases), or build it from source:
-
-```sh
-cargo build --release -p nib
-```
-
-The binary lands at `target/release/nib`.
+Download the `nib` binary for your platform from the [Releases page](https://github.com/sntworx/nib/releases), or [build it from source](#building-the-cli).
 
 ### Usage
 
