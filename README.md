@@ -14,9 +14,18 @@ For shared logic that's easier to write in `nib` itself than as native Rust/PHP/
 
 The same language also reaches multiple host runtimes: a PHP extension (`bindings-php`) and TypeScript/WebAssembly bindings (`bindings-ts`) sit on top of the same core interpreter, so identical `nib` scripts and host-defined behavior can run in a PHP backend and a browser/Node frontend alike.
 
+### What nib deliberately isn't
+
+`nib` isn't a general-purpose embedded language, and isn't trying to become one — if you want modules, closures, or to register your own host types with methods on them, it's the wrong tool. Here the constraints *are* the product, and several of them buy properties outright rather than just leaving things out:
+
+- **No cycles, so no GC.** With no closures and arrays/maps as value types, a script can't build a value that refers back to itself — `a.push(a)` stores a snapshot, it doesn't create a loop. Memory is plain reference counting, freed deterministically, with nothing to leak and no collector to pause. A language whose closures capture by reference gives this up by necessity.
+- **A finite answer to "what can a script reach?"** No imports means no file-access vector. `.` resolves to a closed, interpreter-known set of built-in methods rather than user-extensible dispatch, so the capability list is short enough to write down — and everything beyond it has to be handed over explicitly by the host.
+- **Small enough to actually read.** The interpreter is dependency-free Rust with no `unsafe`, kept small enough to audit end to end before trusting it with someone else's code.
+
 ## Table of contents
 
 - [What's nib](#whats-nib)
+  - [What nib deliberately isn't](#what-nib-deliberately-isnt)
 - [Syntax](#syntax)
   - [Comments](#comments)
   - [Literals](#literals)
