@@ -6,7 +6,7 @@ use crate::ast::types::{
     TryStmt, UnaryOp, VarAssign, WhileStmt,
 };
 use crate::runtime::environment::Environment;
-use crate::runtime::helpers::{as_f64, checked_float, values_equal};
+use crate::runtime::helpers::{as_f64, checked_float, is_truthy, values_equal};
 use crate::runtime::types::{Function, MethodResult, NativeFunction, RuntimeError, Value};
 use crate::types::Config;
 
@@ -207,16 +207,13 @@ impl Interpreter {
     }
 
     fn exec_if(&mut self, if_stmt: &IfStmt) -> Result<Flow, RuntimeError> {
-        match self.eval(&if_stmt.condition)? {
-            Value::Bool(true) => self.exec_block(&if_stmt.then_branch),
-            Value::Bool(false) => match &if_stmt.else_branch {
+        if is_truthy(&self.eval(&if_stmt.condition)?) {
+            self.exec_block(&if_stmt.then_branch)
+        } else {
+            match &if_stmt.else_branch {
                 Some(else_branch) => self.exec_block(else_branch),
                 None => Ok(Flow::Normal),
-            },
-            other => Err(self.error(format!(
-                "if condition must be a bool, got {}",
-                other.type_name()
-            ))),
+            }
         }
     }
 
@@ -265,15 +262,8 @@ impl Interpreter {
                 return Ok(Flow::Normal);
             }
             self.tick()?;
-            match self.eval(&while_stmt.condition)? {
-                Value::Bool(true) => {}
-                Value::Bool(false) => return Ok(Flow::Normal),
-                other => {
-                    return Err(self.error(format!(
-                        "while condition must be a bool, got {}",
-                        other.type_name()
-                    )));
-                }
+            if !is_truthy(&self.eval(&while_stmt.condition)?) {
+                return Ok(Flow::Normal);
             }
             match self.exec_block(&while_stmt.body)? {
                 Flow::Normal | Flow::Continue => {}
@@ -303,15 +293,7 @@ impl Interpreter {
             }
             self.tick()?;
             let should_continue = match &for_stmt.condition {
-                Some(condition) => match self.eval(condition)? {
-                    Value::Bool(b) => b,
-                    other => {
-                        return Err(self.error(format!(
-                            "for condition must be a bool, got {}",
-                            other.type_name()
-                        )));
-                    }
-                },
+                Some(condition) => is_truthy(&self.eval(condition)?),
                 None => true,
             };
             if !should_continue {
@@ -453,7 +435,7 @@ impl Interpreter {
                 .map(Value::Int)
                 .ok_or_else(|| self.error("integer overflow".to_string())),
             (UnaryOp::Neg, Value::Float(v)) => Ok(Value::Float(-v)),
-            (UnaryOp::Not, Value::Bool(v)) => Ok(Value::Bool(!v)),
+            (UnaryOp::Not, _) => Ok(Value::Bool(!is_truthy(&value))),
             _ => Err(self.error(format!(
                 "unary operator cannot be applied to {}",
                 value.type_name()
@@ -469,23 +451,13 @@ impl Interpreter {
     ) -> Result<Value, RuntimeError> {
         // logical operators short-circuit, so evaluate the right side lazily
         if matches!(op, BinaryOp::And | BinaryOp::Or) {
-            let left_bool = match self.eval(left)? {
-                Value::Bool(b) => b,
-                other => {
-                    return Err(
-                        self.error(format!("expected bool operand, got {}", other.type_name()))
-                    );
-                }
-            };
+            let left_bool = is_truthy(&self.eval(left)?);
+            // Operands are coerced by truthiness, but the result is always a
+            // real Bool - `"" || "x"` is `true`, not `"x"` as it'd be in JS.
             return match (op, left_bool) {
                 (BinaryOp::And, false) => Ok(Value::Bool(false)),
                 (BinaryOp::Or, true) => Ok(Value::Bool(true)),
-                _ => match self.eval(right)? {
-                    Value::Bool(b) => Ok(Value::Bool(b)),
-                    other => {
-                        Err(self.error(format!("expected bool operand, got {}", other.type_name())))
-                    }
-                },
+                _ => Ok(Value::Bool(is_truthy(&self.eval(right)?))),
             };
         }
 

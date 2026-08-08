@@ -100,6 +100,7 @@ x++;      // also x-- and prefix ++x/--x
 "count: " + 5;       // + also stringifies numbers for concatenation
 a == b && c != d;    // && and || short-circuit
 !done || -x <= 0;    // unary ! and -
+!"" && items;        // any value works: truthy/falsy, result is always a Bool
 ```
 
 ### Control flow
@@ -148,6 +149,8 @@ match x {
 ```
 
 `if`/`while`/`match` conditions don't need parens; C-style `for`'s three clauses do, and each of them is optional (`for (;;) { }` loops forever). `for x in arr { }` never has parens — that's how it's told apart from C-style `for`. `break`/`continue` are only valid inside a loop.
+
+Conditions accept any value, not just a `Bool`. Falsy is `false`, `null`, `0`, `0.0`, `""`, `[]` and `{}`; everything else is truthy — including `"0"` (unlike PHP) and `[0]`. So `if items { }` means "has items", and `if name { }` means "non-empty". The same rule applies to `&&`, `||` and `!`, but those still evaluate to a real `Bool` rather than to one of their operands — `"" || "x"` is `true`, not `"x"`, so there's no JS-style `x || "default"` idiom.
 
 `for x in arr` iterates a value-type array by value: `arr` is evaluated once up front (reassigning it mid-loop doesn't change what's iterated), and `x` is a fresh binding each iteration that doesn't alias back into the array. It's array-only — no direct string or map iteration; use `for c in s.chars() { }` for strings and `for k in m.keys() { }`/`for v in m.values() { }` for maps.
 
@@ -293,7 +296,7 @@ for c in "abc".chars() {
 (7).to_str();     // -> "7"
 ```
 
-`.to_int()` on a `Float` truncates toward zero rather than rounding — it's a cast, not a fourth rounding mode alongside `floor`/`ceil`/`round`. `Int`/`Float`/`Str` cover the full typecasting set between each other; there's no `.to_bool()` anywhere, since `nib` has no truthiness coercion elsewhere either (`if`/`while` require a real `Bool`), and `Array`/`Map` stringify via `print`/`+` already, so they don't need a `.to_str()` of their own.
+`.to_int()` on a `Float` truncates toward zero rather than rounding — it's a cast, not a fourth rounding mode alongside `floor`/`ceil`/`round`. `Int`/`Float`/`Str` cover the full typecasting set between each other; there's no `.to_bool()` anywhere, since conditions and `!`/`&&`/`||` already coerce by truthiness (see [Control flow](#control-flow)), and `Array`/`Map` stringify via `print`/`+` already, so they don't need a `.to_str()` of their own.
 
 ### What's not there
 

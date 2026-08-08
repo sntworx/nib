@@ -15,6 +15,23 @@ pub fn values_equal(a: &Value, b: &Value) -> bool {
     }
 }
 
+// Falsy: false, null, zero, empty string, empty array, empty map. Everything
+// else - including "0", [0] and any function - is truthy. Empty collections
+// are falsy so `if items { }` reads as "has items"; "0" is deliberately not,
+// unlike PHP, since a non-empty string being falsy surprises everyone once.
+pub fn is_truthy(value: &Value) -> bool {
+    match value {
+        Value::Bool(v) => *v,
+        Value::Null => false,
+        Value::Int(v) => *v != 0,
+        Value::Float(v) => *v != 0.0,
+        Value::Str(v) => !v.is_empty(),
+        Value::Array(v) => !v.is_empty(),
+        Value::Map(v) => !v.is_empty(),
+        Value::Function(_) | Value::NativeFunction(_) => true,
+    }
+}
+
 // Float ops silently produce inf/-inf/NaN instead of panicking on overflow -
 // turns that into an error instead of letting it propagate as a bad value.
 pub fn checked_float(result: f64) -> Result<Value, String> {
