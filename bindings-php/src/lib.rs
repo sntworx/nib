@@ -36,6 +36,9 @@ impl Nib {
             if let Some(v) = usize_option(options, "maxMapSize")? {
                 config.max_map_size = v;
             }
+            if let Some(v) = usize_option(options, "maxValueDepth")? {
+                config.max_value_depth = v;
+            }
         }
         Ok(Nib {
             nib: NibCore::with_config(config),

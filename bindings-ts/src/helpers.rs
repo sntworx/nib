@@ -26,6 +26,9 @@ pub fn parse_config(options: &JsValue) -> Result<Config, JsValue> {
     if let Some(v) = get_config_field(options, "maxMapSize")? {
         config.max_map_size = v;
     }
+    if let Some(v) = get_config_field(options, "maxValueDepth")? {
+        config.max_value_depth = v;
+    }
     Ok(config)
 }
 

@@ -166,7 +166,7 @@ try {
 
 `throw expr;` can throw any value, not just a string — a thrown `Map`/`Array`/etc. arrives in `catch`'s variable unwrapped, not stringified. Every runtime error is catchable except one: exhausting the [`maxSteps`](#configuration) budget propagates straight through `try`, at any nesting depth, and stops the script. That's not a special case so much as the only honest reading of it — the budget a `catch` block needs to run its own statements is precisely what just ran out, so catching it could never do anything but misreport the failure at the catch block's position instead of the loop's. `exit;` stays outside `try` for the same reason.
 
-The other limit errors (`maxCallDepth`, `maxStringLength`, `maxArrayLength`, `maxMapSize`) *are* catchable and the script keeps running afterwards — none of them leaves a counter exhausted, and catching one grants no extra budget, since `maxCallDepth` is decremented back before the error propagates and the size checks hold no counter at all.
+The other limit errors (`maxCallDepth`, `maxStringLength`, `maxArrayLength`, `maxMapSize`, `maxValueDepth`) *are* catchable and the script keeps running afterwards — none of them leaves a counter exhausted, and catching one grants no extra budget, since `maxCallDepth` is decremented back before the error propagates and the size checks hold no counter at all.
 
 ```
 func check(x) {
@@ -207,7 +207,7 @@ matrix[0][1] = 9;
 matrix[0][1] += 1;
 ```
 
-Arrays are a value type: `var b = a; b[0] = 1;` does **not** change `a`, unlike JS/Python/Ruby.
+Arrays are a value type: `var b = a; b[0] = 1;` does **not** change `a`, unlike JS/Python/Ruby. That's a guarantee about behavior, not about copying — the payload is shared internally and only duplicated when a shared copy is written to, so assigning an array around is cheap and `push` doesn't re-copy the whole thing.
 
 ```
 var arr = [1, 2, 3];
@@ -320,6 +320,7 @@ Both host bindings accept an optional config when constructing a `Nib` instance 
 | `maxStringLength` | `1000000` | Caps a single string's length (character count, not byte count), checked wherever a string is built or grows — literals, concatenation (`+`/`+=`), and methods that return a string. Exceeding it fails with `"string exceeds maximum length of N characters"`. |
 | `maxArrayLength` | `1000000` | Caps a single array's element count, checked wherever an array is built or grows — literals, `push()`, and methods that return an array (`chars()`, `keys()`, `values()`). Exceeding it fails with `"array exceeds maximum length of N elements"`. |
 | `maxMapSize` | `1000000` | Caps a single map's entry count, checked whenever a *new* key is inserted — literals and `m[newKey] = x`. Overwriting an existing key never grows the map, so it's never rejected regardless of this limit. Exceeding it fails with `"map exceeds maximum size of N entries"`. |
+| `maxValueDepth` | `128` | Caps how deeply arrays/maps nest inside each other (`[[[1]]]` is 3). Unlike the limits above it guards the **native stack**, not memory: printing, comparing, converting a value to a host language, and freeing it each walk the structure one real stack frame per level, so a deep enough value would abort the process rather than raise an error. Exceeding it fails with `"value nested deeper than N levels"` when the value is built. Raising it is safe for freeing values (that's iterative) but not for printing or comparing them, so leave it alone unless you have data that genuinely nests deeper. |
 
 ## Building from source
 
@@ -408,6 +409,7 @@ $nib = new Nib([
     "maxStringLength" => 10000,
     "maxArrayLength" => 10000,
     "maxMapSize" => 10000,
+    "maxValueDepth" => 64,
 ]);
 ```
 
@@ -487,6 +489,7 @@ const nib = new Nib({
     maxStringLength: 10000,
     maxArrayLength: 10000,
     maxMapSize: 10000,
+    maxValueDepth: 64,
 });
 ```
 

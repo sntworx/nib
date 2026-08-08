@@ -26,6 +26,7 @@ pub struct Interpreter {
     max_string_length: usize,
     max_array_length: usize,
     max_map_size: usize,
+    max_value_depth: usize,
     current_pos: (usize, usize),
     should_exit: bool,
 }
@@ -41,6 +42,7 @@ impl Interpreter {
             max_string_length: config.max_string_length,
             max_array_length: config.max_array_length,
             max_map_size: config.max_map_size,
+            max_value_depth: config.max_value_depth,
             current_pos: (0, 0),
             should_exit: false,
         }
@@ -106,6 +108,11 @@ impl Interpreter {
             Value::Map(pairs) if pairs.len() > self.max_map_size => Err(self.error(format!(
                 "map exceeds maximum size of {} entries",
                 self.max_map_size
+            ))),
+            // Guards the native stack rather than memory - see max_value_depth
+            value if value.depth() > self.max_value_depth => Err(self.error(format!(
+                "value nested deeper than {} levels",
+                self.max_value_depth
             ))),
             _ => Ok(()),
         }
@@ -639,7 +646,7 @@ impl Interpreter {
                             items.len()
                         )));
                     }
-                    Rc::make_mut(items)[idx as usize] = new_elem;
+                    Rc::make_mut(items).set(idx as usize, new_elem);
                     Ok(container)
                 }
                 other => Err(self.error(format!(
@@ -649,11 +656,7 @@ impl Interpreter {
             },
             Value::Map(pairs) => match index_val {
                 Value::Str(key) => {
-                    let pairs = Rc::make_mut(pairs);
-                    match pairs.iter_mut().find(|(k, _)| *k == key) {
-                        Some((_, v)) => *v = new_elem,
-                        None => pairs.push((key, new_elem)),
-                    }
+                    Rc::make_mut(pairs).insert(key, new_elem);
                     self.check_size_limits(&container)?;
                     Ok(container)
                 }
@@ -722,7 +725,7 @@ impl Interpreter {
                 // the array, so nothing between this and the write-back can
                 // fail and strand the binding.
                 self.detach_binding(object);
-                Rc::make_mut(&mut items)[idx_usize] = new_elem.clone();
+                Rc::make_mut(&mut items).set(idx_usize, new_elem.clone());
                 self.assign_to_target(object, Value::Array(items))?;
                 Ok(new_elem)
             }
@@ -751,10 +754,9 @@ impl Interpreter {
                     }
                     None => self.eval(value)?,
                 };
-                match existing {
-                    Some(pos) => Rc::make_mut(&mut pairs)[pos].1 = new_elem.clone(),
-                    None => Rc::make_mut(&mut pairs).push((key, new_elem.clone())),
-                }
+                // upsert - `existing` above only decided whether a compound
+                // op had a value to combine with
+                Rc::make_mut(&mut pairs).insert(key, new_elem.clone());
                 let patched = Value::Map(pairs);
                 self.check_size_limits(&patched)?;
                 self.assign_to_target(object, patched)?;

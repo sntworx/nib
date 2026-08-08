@@ -48,6 +48,15 @@ pub struct Config {
     // inserted (literals, and `m[newKey] = x`) - overwriting an existing key
     // never grows the map, so it's never rejected regardless of this limit.
     pub max_map_size: usize,
+    // Caps how deeply arrays/maps may nest inside each other (`[[[1]]]` is 3).
+    // Unlike the other limits this one guards the *native stack*, not memory:
+    // every recursive walk over a value - Display, equality, the host
+    // bindings' conversion, Drop - costs one real stack frame per level, so a
+    // deep enough value aborts the process. Drop is why this has to be a
+    // build-time limit rather than a check inside each walk: a destructor
+    // can't return an error or be caught. 128 matches `max_parse_depth` and
+    // the bindings' own conversion cap, so nothing here nests deeper than 128.
+    pub max_value_depth: usize,
 }
 
 impl Default for Config {
@@ -59,6 +68,7 @@ impl Default for Config {
             max_string_length: 1_000_000,
             max_array_length: 1_000_000,
             max_map_size: 1_000_000,
+            max_value_depth: 128,
         }
     }
 }

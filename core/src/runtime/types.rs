@@ -27,6 +27,136 @@ impl fmt::Debug for NativeFunction {
     }
 }
 
+// Payload behind Value::Array. Caches `depth` (0 for a leaf, so an array of
+// scalars is 1) purely so a nesting limit can be enforced in O(1) when a value
+// is built - computing it on demand would be O(nodes). Every recursive walk
+// over a Value burns one native stack frame per level, and `Drop` is the walk
+// that can't fail gracefully, so the limit is what keeps them all safe.
+// `Deref` gives read-only Vec access at the ~40 sites that only read; writes go
+// through the methods below, which are the only things allowed to touch
+// `items`, since they're what keep `depth` honest.
+#[derive(Debug, Clone)]
+pub struct ArrayData {
+    items: Vec<Value>,
+    depth: usize,
+}
+
+impl ArrayData {
+    fn new(items: Vec<Value>) -> Self {
+        let depth = items.iter().map(|v| v.depth() + 1).max().unwrap_or(1);
+        ArrayData { items, depth }
+    }
+
+    fn push(&mut self, value: Value) {
+        self.depth = self.depth.max(value.depth() + 1);
+        self.items.push(value);
+    }
+
+    fn pop(&mut self) -> Option<Value> {
+        // `depth` deliberately isn't recomputed: shrinking can only lower it,
+        // so the stale value stays a safe upper bound, and recomputing would
+        // make `pop` O(len).
+        self.items.pop()
+    }
+
+    pub(crate) fn set(&mut self, index: usize, value: Value) {
+        self.depth = self.depth.max(value.depth() + 1);
+        self.items[index] = value;
+    }
+}
+
+impl std::ops::Deref for ArrayData {
+    type Target = Vec<Value>;
+    fn deref(&self) -> &Vec<Value> {
+        &self.items
+    }
+}
+
+// Structural, ignoring the cached depth - it's an upper bound (see `pop`), so
+// two equal arrays can legitimately carry different values for it.
+impl PartialEq for ArrayData {
+    fn eq(&self, other: &Self) -> bool {
+        self.items == other.items
+    }
+}
+
+impl Drop for ArrayData {
+    fn drop(&mut self) {
+        drop_nested(std::mem::take(&mut self.items));
+    }
+}
+
+// Payload behind Value::Map - same rationale as ArrayData above.
+#[derive(Debug, Clone)]
+pub struct MapData {
+    pairs: Vec<(String, Value)>,
+    depth: usize,
+}
+
+impl MapData {
+    fn new(pairs: Vec<(String, Value)>) -> Self {
+        let depth = pairs.iter().map(|(_, v)| v.depth() + 1).max().unwrap_or(1);
+        MapData { pairs, depth }
+    }
+
+    // Upsert: the one write maps need, and the only place a map grows.
+    pub(crate) fn insert(&mut self, key: String, value: Value) {
+        self.depth = self.depth.max(value.depth() + 1);
+        match self.pairs.iter_mut().find(|(k, _)| *k == key) {
+            Some((_, slot)) => *slot = value,
+            None => self.pairs.push((key, value)),
+        }
+    }
+
+    fn remove_at(&mut self, index: usize) -> (String, Value) {
+        // stale `depth` stays a safe upper bound, same as ArrayData::pop
+        self.pairs.remove(index)
+    }
+}
+
+impl std::ops::Deref for MapData {
+    type Target = Vec<(String, Value)>;
+    fn deref(&self) -> &Vec<(String, Value)> {
+        &self.pairs
+    }
+}
+
+impl PartialEq for MapData {
+    fn eq(&self, other: &Self) -> bool {
+        self.pairs == other.pairs
+    }
+}
+
+impl Drop for MapData {
+    fn drop(&mut self) {
+        drop_nested(self.pairs.drain(..).map(|(_, v)| v).collect());
+    }
+}
+
+// Tears nested containers down with an explicit worklist. The derived
+// recursive drop walks one native stack frame per nesting level and aborts the
+// process on a deep enough value - and unlike a RuntimeError, a Drop can't
+// fail gracefully or be caught, so it has to be bounded structurally rather
+// than checked. Taking the children out of each node before it falls out of
+// scope is what stops the recursion re-entering.
+fn drop_nested(mut worklist: Vec<Value>) {
+    while let Some(value) = worklist.pop() {
+        match value {
+            Value::Array(rc) => {
+                if let Some(mut data) = Rc::into_inner(rc) {
+                    worklist.append(&mut data.items);
+                }
+            }
+            Value::Map(rc) => {
+                if let Some(mut data) = Rc::into_inner(rc) {
+                    worklist.extend(data.pairs.drain(..).map(|(_, v)| v));
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 // Arrays and maps stay *value* types to a script - `var b = a; b[0] = 1;`
 // must never touch `a` - but the Rc means that promise costs a refcount bump
 // instead of a deep copy. Every write goes through `Rc::make_mut`, which
@@ -41,8 +171,8 @@ pub enum Value {
     Float(f64),
     Str(String),
     Bool(bool),
-    Array(Rc<Vec<Value>>),
-    Map(Rc<Vec<(String, Value)>>),
+    Array(Rc<ArrayData>),
+    Map(Rc<MapData>),
     Function(Rc<Function>),
     NativeFunction(Rc<NativeFunction>),
     Null,
@@ -52,11 +182,21 @@ impl Value {
     // Public: a host building a return value for `register_func` shouldn't
     // have to know the payload is behind an Rc.
     pub fn array(items: Vec<Value>) -> Value {
-        Value::Array(Rc::new(items))
+        Value::Array(Rc::new(ArrayData::new(items)))
     }
 
     pub fn map(pairs: Vec<(String, Value)>) -> Value {
-        Value::Map(Rc::new(pairs))
+        Value::Map(Rc::new(MapData::new(pairs)))
+    }
+
+    // 0 for a leaf, so `[1, 2]` is 1 and `[[1]]` is 2. Cached, not computed -
+    // see ArrayData.
+    pub(crate) fn depth(&self) -> usize {
+        match self {
+            Value::Array(data) => data.depth,
+            Value::Map(data) => data.depth,
+            _ => 0,
+        }
     }
 
     // Used in "wrong type" error messages instead of the value's own Display,
@@ -167,7 +307,7 @@ impl Value {
                     .iter()
                     .position(|(k, _)| *k == key)
                     .ok_or_else(|| format!("key '{}' not found in map", key))?;
-                let (_, removed) = Rc::make_mut(pairs).remove(pos);
+                let (_, removed) = Rc::make_mut(pairs).remove_at(pos);
                 Ok(MethodResult::Mutating(removed))
             }
             (Value::Map(pairs), "keys") => {
