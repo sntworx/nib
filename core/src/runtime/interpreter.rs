@@ -426,7 +426,12 @@ impl Interpreter {
     fn eval_unary(&mut self, op: &UnaryOp, expr: &Expr) -> Result<Value, RuntimeError> {
         let value = self.eval(expr)?;
         match (op, &value) {
-            (UnaryOp::Neg, Value::Int(v)) => Ok(Value::Int(-v)),
+            // checked, like every other integer op - negating i64::MIN
+            // overflows, which would panic in debug and wrap in release
+            (UnaryOp::Neg, Value::Int(v)) => v
+                .checked_neg()
+                .map(Value::Int)
+                .ok_or_else(|| self.error("integer overflow".to_string())),
             (UnaryOp::Neg, Value::Float(v)) => Ok(Value::Float(-v)),
             (UnaryOp::Not, Value::Bool(v)) => Ok(Value::Bool(!v)),
             _ => Err(self.error(format!(
