@@ -4,7 +4,7 @@ mod runtime;
 mod types;
 
 use ast::Ast;
-use lexer::Lexer;
+use lexer::{Lexer, TokenKind};
 use runtime::Interpreter;
 use types::Error;
 
@@ -48,12 +48,21 @@ impl Nib {
         self.interpreter.register_native(name, f);
     }
 
-    pub fn disable_keywords(&mut self, keywords: Vec<&str>) {
+    // All-or-nothing: every name is validated before any is recorded, so a
+    // rejected call leaves the restriction set exactly as it was rather than
+    // half-applied.
+    pub fn disable_keywords(&mut self, keywords: Vec<&str>) -> Result<(), Error> {
+        for keyword in &keywords {
+            if TokenKind::from_keyword(keyword).is_none() {
+                return Err(Error::UnknownKeyword(keyword.to_string()));
+            }
+        }
         for keyword in keywords {
             if !self.disabled_keywords.iter().any(|k| k == keyword) {
                 self.disabled_keywords.push(keyword.to_string());
             }
         }
+        Ok(())
     }
 
     pub fn parse(&mut self, source: &str) -> Result<(), Error> {

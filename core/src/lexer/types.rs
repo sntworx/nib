@@ -69,6 +69,37 @@ pub enum TokenKind {
     Eof,
 }
 
+impl TokenKind {
+    // The one keyword table: the lexer classifies identifiers through it, and
+    // `Nib::disable_keywords` validates against it, so the two can't drift.
+    pub fn from_keyword(text: &str) -> Option<TokenKind> {
+        let kind = match text {
+            "var" => TokenKind::Var,
+            "if" => TokenKind::If,
+            "else" => TokenKind::Else,
+            "true" => TokenKind::True,
+            "false" => TokenKind::False,
+            "func" => TokenKind::Func,
+            "return" => TokenKind::Return,
+            "null" => TokenKind::Null,
+            "while" => TokenKind::While,
+            "for" => TokenKind::For,
+            "break" => TokenKind::Break,
+            "continue" => TokenKind::Continue,
+            "match" => TokenKind::Match,
+            "case" => TokenKind::Case,
+            "default" => TokenKind::Default,
+            "in" => TokenKind::In,
+            "try" => TokenKind::Try,
+            "catch" => TokenKind::Catch,
+            "throw" => TokenKind::Throw,
+            "exit" => TokenKind::Exit,
+            _ => return None,
+        };
+        Some(kind)
+    }
+}
+
 impl fmt::Display for TokenKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {

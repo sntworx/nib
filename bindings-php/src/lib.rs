@@ -56,9 +56,11 @@ impl Nib {
         Ok(())
     }
 
-    pub fn disable_keywords(&mut self, keywords: Vec<String>) {
+    pub fn disable_keywords(&mut self, keywords: Vec<String>) -> PhpResult<()> {
         self.nib
-            .disable_keywords(keywords.iter().map(|k| k.as_str()).collect());
+            .disable_keywords(keywords.iter().map(|k| k.as_str()).collect())
+            .map_err(|e| e.to_string())?;
+        Ok(())
     }
 
     pub fn register_func(&mut self, name: String, callback: &Zval) -> PhpResult<()> {

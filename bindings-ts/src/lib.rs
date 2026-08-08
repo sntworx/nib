@@ -57,8 +57,9 @@ impl Nib {
     }
 
     #[wasm_bindgen(js_name = disableKeywords)]
-    pub fn disable_keywords(&mut self, keywords: Vec<String>) {
+    pub fn disable_keywords(&mut self, keywords: Vec<String>) -> Result<(), JsValue> {
         self.nib
-            .disable_keywords(keywords.iter().map(|k| k.as_str()).collect());
+            .disable_keywords(keywords.iter().map(|k| k.as_str()).collect())
+            .map_err(|e| JsValue::from_str(&e.to_string()))
     }
 }

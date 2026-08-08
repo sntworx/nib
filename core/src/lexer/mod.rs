@@ -208,29 +208,7 @@ impl Lexer {
                 break;
             }
         }
-        let keyword = match text.as_str() {
-            "var" => Some(TokenKind::Var),
-            "if" => Some(TokenKind::If),
-            "else" => Some(TokenKind::Else),
-            "true" => Some(TokenKind::True),
-            "false" => Some(TokenKind::False),
-            "func" => Some(TokenKind::Func),
-            "return" => Some(TokenKind::Return),
-            "null" => Some(TokenKind::Null),
-            "while" => Some(TokenKind::While),
-            "for" => Some(TokenKind::For),
-            "break" => Some(TokenKind::Break),
-            "continue" => Some(TokenKind::Continue),
-            "match" => Some(TokenKind::Match),
-            "case" => Some(TokenKind::Case),
-            "default" => Some(TokenKind::Default),
-            "in" => Some(TokenKind::In),
-            "try" => Some(TokenKind::Try),
-            "catch" => Some(TokenKind::Catch),
-            "throw" => Some(TokenKind::Throw),
-            "exit" => Some(TokenKind::Exit),
-            _ => None,
-        };
+        let keyword = TokenKind::from_keyword(&text);
 
         // disabled_keywords only ever gates language keywords, never plain
         // identifiers - otherwise disabling "add" would also block a user's

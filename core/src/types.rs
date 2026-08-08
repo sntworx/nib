@@ -76,6 +76,11 @@ pub enum Error {
     // would abort the host across the PHP/wasm FFI boundary instead of
     // surfacing as a catchable exception.
     NotParsed,
+    // `disable_keywords` given something that isn't a keyword. Rejected rather
+    // than ignored because it's a security control: silently accepting a typo
+    // ("Whlie") leaves the host believing it restricted the language when it
+    // didn't. Host-supplied, so echoing the name back is safe.
+    UnknownKeyword(String),
 }
 
 impl fmt::Display for Error {
@@ -86,6 +91,9 @@ impl fmt::Display for Error {
             Error::Runtime(e) => write!(f, "{}", e),
             Error::Included(e) => write!(f, "{} (in included code)", e),
             Error::NotParsed => write!(f, "no script to run: call parse() before run()"),
+            Error::UnknownKeyword(name) => {
+                write!(f, "cannot disable '{}': not a nib keyword", name)
+            }
         }
     }
 }

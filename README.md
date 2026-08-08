@@ -415,7 +415,7 @@ $nib = new Nib([
 func double(x) { return x * 2; }
 ```
 
-`include()` just queues the source and can't fail on its own — no try/catch needed around it. `parse()` and `run()` throw on error (a bad script raises a PHP exception rather than returning an error code), so wrap them in `try`/`catch` when running untrusted scripts. `run()` is also where a problem in included code would surface (labeled `(in included code)` so it's not confused with a main-script error). Calling `run()` before `parse()` throws like any other error (`no script to run: call parse() before run()`) and leaves any queued `include()`s untouched, so they still run once a script is parsed:
+`include()` just queues the source and can't fail on its own — no try/catch needed around it. `disableKeywords()` throws if given anything that isn't a nib keyword: a typo like `"Whlie"` is rejected rather than quietly ignored, since accepting it would leave you believing the language was restricted when it wasn't. A rejected call changes nothing — no name in it is applied. `parse()` and `run()` throw on error (a bad script raises a PHP exception rather than returning an error code), so wrap them in `try`/`catch` when running untrusted scripts. `run()` is also where a problem in included code would surface (labeled `(in included code)` so it's not confused with a main-script error). Calling `run()` before `parse()` throws like any other error (`no script to run: call parse() before run()`) and leaves any queued `include()`s untouched, so they still run once a script is parsed:
 
 ```php
 try {
@@ -508,6 +508,8 @@ Direct browser, no bundler — needs an explicit async init first, and `include(
     nib.run();
 </script>
 ```
+
+`disableKeywords()` throws if given anything that isn't a nib keyword: a typo like `"Whlie"` is rejected rather than quietly ignored, since accepting it would leave you believing the language was restricted when it wasn't. A rejected call changes nothing — no name in it is applied.
 
 `parse()`/`run()` throw a JS `Error` on failure, so wrap them in `try`/`catch` when running untrusted scripts:
 

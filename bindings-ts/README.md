@@ -53,6 +53,8 @@ func double(x) { return x * 2; }
 
 `include()` just queues the source and can't fail on its own — no try/catch needed around it. A problem in included code surfaces from `run()` instead (labeled `(in included code)` so it's not confused with a main-script error).
 
+`disableKeywords()` throws if given anything that isn't a nib keyword: a typo like `"Whlie"` is rejected rather than quietly ignored, since accepting it would leave you believing the language was restricted when it wasn't. A rejected call changes nothing — no name in it is applied.
+
 `new Nib()` optionally takes an options object to override a handful of interpreter safety limits (recursion depth, parser nesting depth, total execution steps, max string/array/map size) — omit it, or any of its keys, to use the defaults; see the [main repo](https://github.com/sntworx/nib#configuration) for what each option guards against:
 
 ```js
