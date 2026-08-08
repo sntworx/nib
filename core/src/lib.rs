@@ -71,14 +71,20 @@ impl Nib {
         self.ast.as_ref()
     }
 
+    // Resolved before the includes run so that calling run() without a parsed
+    // script is a clean no-op error, not one that has already executed and
+    // cleared the queued includes on its way out.
     pub fn run(&mut self) -> Result<(), Error> {
+        let Some(ast) = self.ast.as_ref() else {
+            return Err(Error::NotParsed);
+        };
+
         for source in &self.included {
             Self::run_source(&mut self.interpreter, source, self.config.max_parse_depth)
                 .map_err(|e| Error::Included(Box::new(e)))?;
         }
         self.included.clear();
 
-        let ast = self.ast.as_ref().expect("parse must be called before run");
         self.interpreter.run(ast)?;
         Ok(())
     }

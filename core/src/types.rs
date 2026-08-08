@@ -71,6 +71,11 @@ pub enum Error {
     // An error from `Nib::include`d source rather than the main script -
     // each include starts at line 1, so line:col alone can't tell them apart.
     Included(Box<Error>),
+    // `run()` with no parsed script. An API misuse rather than a fault in any
+    // source, so it carries no line/col - but still an Err, since a panic here
+    // would abort the host across the PHP/wasm FFI boundary instead of
+    // surfacing as a catchable exception.
+    NotParsed,
 }
 
 impl fmt::Display for Error {
@@ -80,6 +85,7 @@ impl fmt::Display for Error {
             Error::Parse(e) => write!(f, "{}", e),
             Error::Runtime(e) => write!(f, "{}", e),
             Error::Included(e) => write!(f, "{} (in included code)", e),
+            Error::NotParsed => write!(f, "no script to run: call parse() before run()"),
         }
     }
 }
