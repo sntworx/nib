@@ -39,7 +39,10 @@ fi
 
 rustup target add "$target"
 
-cargo build -p bindings-php --release --target "$target"
+# CARGO_EXTRA_ARGS is a plain, unquoted, space-separated word list (not a
+# single quoted string) appended to the build invocation as-is -- e.g. for
+# passing per-environment -Z/--config flags this script has no opinion on.
+cargo build -p bindings-php --release --target "$target" ${CARGO_EXTRA_ARGS:-}
 
 built_lib="target/$target/release/libphp_nib.$built_ext"
 if [[ ! -f "$built_lib" ]]; then
