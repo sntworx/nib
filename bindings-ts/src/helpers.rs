@@ -149,3 +149,7 @@ fn js_to_value_at(js: &JsValue, depth: usize) -> Result<Value, String> {
         Err("unsupported JS value returned from callback".to_string())
     }
 }
+
+#[cfg(test)]
+#[path = "helpers_tests.rs"]
+mod tests;

@@ -70,3 +70,7 @@ impl Environment {
         self.scopes.extend(saved_locals);
     }
 }
+
+#[cfg(test)]
+#[path = "environment_tests.rs"]
+mod tests;

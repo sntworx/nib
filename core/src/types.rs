@@ -4,6 +4,7 @@ use crate::ast::ParseError;
 use crate::lexer::LexError;
 use crate::runtime::RuntimeError;
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Config {
     // Caps recursive function call depth; exceeding it is a RuntimeError
     // ("stack overflow: exceeded maximum call depth of {}"), not a native

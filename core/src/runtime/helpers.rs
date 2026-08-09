@@ -55,3 +55,7 @@ pub fn checked_i64_from_f64(f: f64) -> Result<i64, String> {
         Err(format!("{} is out of range for int conversion", f))
     }
 }
+
+#[cfg(test)]
+#[path = "helpers_tests.rs"]
+mod tests;

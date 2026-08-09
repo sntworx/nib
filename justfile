@@ -68,6 +68,26 @@ bindings-ts-pack: bindings-ts-build-all
   mkdir -p dist/ts-nib
   cd bindings-ts && npm pack --pack-destination ../dist/ts-nib
 
+# run the test suite (rust, all crates)
+test:
+  cargo test
+
+# run the wasm binding tests (needs wasm-pack)
+test-ts:
+  cd bindings-ts && wasm-pack test --node
+
+# run release-only tests (stack-size guarantees, skipped by default)
+test-release:
+  cargo test --release -- --ignored
+
+# test coverage for the language crate (needs: cargo install cargo-llvm-cov)
+coverage:
+  cargo llvm-cov --package nib_core --summary-only
+
+# test coverage as a browsable HTML report
+coverage-html:
+  cargo llvm-cov --package nib_core --html --open
+
 # run cargo FMT
 cargo-fmt:
     cargo +nightly fmt

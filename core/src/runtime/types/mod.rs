@@ -135,7 +135,9 @@ impl PartialEq for Value {
             (Value::Array(a), Value::Array(b)) => Rc::ptr_eq(a, b) || a == b,
             // Order-independent: unlike Vec<(String,Value)>'s own derived
             // PartialEq, two maps with the same keys/values in different
-            // insertion order must compare equal.
+            // insertion order must compare equal. Done here rather than via a
+            // `PartialEq for MapData` precisely so no one can delegate to a
+            // field-wise impl and silently make map equality order-sensitive.
             (Value::Map(a), Value::Map(b)) => {
                 Rc::ptr_eq(a, b)
                     || (a.len() == b.len()

@@ -180,12 +180,6 @@ impl std::ops::Deref for MapData {
     }
 }
 
-impl PartialEq for MapData {
-    fn eq(&self, other: &Self) -> bool {
-        self.pairs == other.pairs
-    }
-}
-
 impl Drop for MapData {
     fn drop(&mut self) {
         drop_nested(self.pairs.drain(..).map(|(_, v)| v).collect());
@@ -215,3 +209,7 @@ fn drop_nested(mut worklist: Vec<Value>) {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "containers_tests.rs"]
+mod tests;

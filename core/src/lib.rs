@@ -6,10 +6,9 @@ mod types;
 use ast::Ast;
 use lexer::{Lexer, TokenKind};
 use runtime::Interpreter;
-use types::Error;
 
 pub use runtime::Value;
-pub use types::Config;
+pub use types::{Config, Error};
 
 pub struct Nib {
     ast: Option<Ast>,
