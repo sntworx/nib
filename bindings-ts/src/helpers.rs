@@ -1,5 +1,5 @@
 use js_sys::{Array, Object, Reflect};
-use nib_core::{Config, Value};
+use nib_lang::{Config, Value};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 

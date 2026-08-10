@@ -2,7 +2,7 @@
 //! `runtime/interpreter/calls.rs`.
 
 use crate::common::{cfg, err, harness, run};
-use nib_core::Value;
+use nib_lang::Value;
 use std::cell::RefCell;
 use std::rc::Rc;
 

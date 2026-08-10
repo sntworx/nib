@@ -3,7 +3,7 @@
 //! bare assertion.
 
 use crate::common::{cfg, err, err_with, harness, run, run_with};
-use nib_core::{Config, Value};
+use nib_lang::{Config, Value};
 use std::cell::RefCell;
 use std::rc::Rc;
 

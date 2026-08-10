@@ -1,6 +1,6 @@
 //! End-to-end tests for the `nib` binary: flags, output streams and exit
 //! codes. These drive the real executable, so they cover the argument
-//! plumbing and the host natives (`print`/`println`/`read`) that `nib_core`
+//! plumbing and the host natives (`print`/`println`/`read`) that `nib_lang`
 //! deliberately doesn't provide.
 
 use assert_cmd::Command;

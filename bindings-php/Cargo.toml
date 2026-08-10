@@ -10,4 +10,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 ext-php-rs = "0.15.15"
-nib_core = { path = "../core" }
+nib-lang = { path = "../core" }

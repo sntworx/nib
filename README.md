@@ -314,7 +314,7 @@ Nothing pre-bound by default (the host opts scripts into native functions via `r
 
 ## Workspace layout
 
-- `core/` — the language implementation (package `nib_core`): lexer, parser, interpreter.
+- `core/` — the language implementation (package `nib-lang`): lexer, parser, interpreter.
 - `nib/` — a CLI that runs `.nib` scripts, or prints their parsed AST.
 - `bindings-php/` — a PHP extension (via `ext-php-rs`) exposing `nib` as a `Nib` class.
 - `bindings-ts/` — TypeScript/WebAssembly bindings (via `wasm-bindgen`), published as the `@sntworx/nib` npm package.

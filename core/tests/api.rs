@@ -4,7 +4,7 @@
 mod common;
 
 use common::harness;
-use nib_core::{Config, Error, Nib, Value};
+use nib_lang::{Config, Error, Nib, Value};
 
 #[test]
 fn config_is_cloneable_and_comparable() {

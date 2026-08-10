@@ -1,5 +1,11 @@
 [package]
-name = "nib_core"
+name = "nib-lang"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
+description = "A small, embeddable scripting language with a sandboxed, opt-in-only interpreter."
+repository = "https://github.com/sntworx/nib"
+documentation = "https://docs.rs/nib-lang"
+readme = "README.md"
+keywords = ["scripting", "interpreter", "embedded", "sandbox", "language"]
+categories = ["compilers", "parser-implementations"]

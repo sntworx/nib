@@ -1,13 +1,13 @@
 //! Shared harness for the integration suite.
 //!
-//! Everything here goes through `nib_core`'s public API only - scripts report
+//! Everything here goes through `nib_lang`'s public API only - scripts report
 //! results by calling `out(...)`, which the harness captures. Internals that
 //! can't be reached this way are unit-tested next to the module instead (see
 //! `src/**/ *_tests.rs`).
 
 #![allow(dead_code)] // each tests/<dir>/main.rs uses a different subset
 
-use nib_core::{Config, Nib, Value};
+use nib_lang::{Config, Nib, Value};
 use std::cell::RefCell;
 use std::rc::Rc;
 

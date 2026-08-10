@@ -6,7 +6,7 @@
 
 use super::*;
 use js_sys::{Array, Object, Reflect};
-use nib_core::Value;
+use nib_lang::Value;
 use wasm_bindgen_test::*;
 
 fn obj(pairs: &[(&str, JsValue)]) -> JsValue {
@@ -168,7 +168,7 @@ fn values_just_under_the_cap_still_convert() {
 
 #[wasm_bindgen_test]
 fn missing_options_give_the_defaults() {
-    let d = nib_core::Config::default();
+    let d = nib_lang::Config::default();
     assert_eq!(parse_config(&JsValue::UNDEFINED).unwrap(), d);
     assert_eq!(parse_config(&JsValue::NULL).unwrap(), d);
     assert_eq!(parse_config(&Object::new().into()).unwrap(), d);
@@ -207,7 +207,7 @@ fn every_config_field_is_read() {
 fn unspecified_config_fields_keep_their_defaults() {
     let c = parse_config(&obj(&[("maxSteps", JsValue::from_f64(9.0))])).unwrap();
     assert_eq!(c.max_steps, 9);
-    assert_eq!(c.max_call_depth, nib_core::Config::default().max_call_depth);
+    assert_eq!(c.max_call_depth, nib_lang::Config::default().max_call_depth);
 }
 
 #[wasm_bindgen_test]

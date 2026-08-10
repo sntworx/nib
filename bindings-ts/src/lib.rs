@@ -2,7 +2,7 @@ mod helpers;
 
 use helpers::{describe_js_error, js_to_value, parse_config, value_to_js};
 use js_sys::{Array, Function};
-use nib_core::{Nib as NibCore, Value};
+use nib_lang::{Nib as NibCore, Value};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]

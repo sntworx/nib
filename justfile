@@ -82,11 +82,15 @@ test-release:
 
 # test coverage for the language crate (needs: cargo install cargo-llvm-cov)
 coverage:
-  cargo llvm-cov --package nib_core --summary-only
+  cargo llvm-cov --package nib-lang --summary-only
 
 # test coverage as a browsable HTML report
 coverage-html:
-  cargo llvm-cov --package nib_core --html --open
+  cargo llvm-cov --package nib-lang --html --open
+
+# build and open the language crate's rustdoc
+docs:
+  cargo doc -p nib-lang --no-deps --open
 
 # run cargo FMT
 cargo-fmt:

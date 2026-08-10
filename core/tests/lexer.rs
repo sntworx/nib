@@ -5,7 +5,7 @@
 mod common;
 
 use common::{err, run};
-use nib_core::{Error, Nib};
+use nib_lang::{Error, Nib};
 
 #[test]
 fn string_escapes() {

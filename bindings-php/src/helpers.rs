@@ -1,7 +1,7 @@
 use ext_php_rs::convert::IntoZval;
 use ext_php_rs::error::Error as PhpRsError;
 use ext_php_rs::types::{ZendHashTable, Zval};
-use nib_core::Value;
+use nib_lang::Value;
 
 pub fn usize_option(options: &ZendHashTable, key: &str) -> Result<Option<usize>, String> {
     match options.get(key) {

@@ -5,7 +5,7 @@ use std::process::ExitCode;
 use std::time::Instant;
 
 use clap::Parser;
-use nib_core::{Nib, Value};
+use nib_lang::{Nib, Value};
 
 /// Run a nib script.
 #[derive(Parser)]

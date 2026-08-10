@@ -42,26 +42,53 @@ impl fmt::Debug for NativeFunction {
 // physically duplicating anything. Nothing may mutate the inner Vec except
 // through `make_mut`: an aliased `&mut` would leak sharing into script-visible
 // behavior, which is the one way this representation can go wrong.
+/// A runtime value: the argument/return type for
+/// [`Nib::register_func`](crate::Nib::register_func) and what every `nib`
+/// expression evaluates to.
+///
+/// Arrays and maps are value types, not reference types: `var b = a;`
+/// followed by `b[0] = 1;` never affects `a`. Internally they're
+/// copy-on-write (`Rc`-backed), so that guarantee costs a refcount bump on
+/// clone rather than a deep copy, and only actually copies when a shared
+/// payload is written to.
 #[derive(Debug, Clone)]
 pub enum Value {
+    /// A 64-bit signed integer.
     Int(i64),
+    /// A 64-bit floating-point number. Never non-finite (`inf`/`nan`/`-inf`)
+    /// - every operation that would produce one is a runtime error instead.
     Float(f64),
+    /// A UTF-8 string.
     Str(String),
+    /// A boolean.
     Bool(bool),
+    /// An ordered list of values. A value type - see the enum-level docs.
     Array(Rc<ArrayData>),
+    /// A string-keyed, insertion-ordered collection of values. A value type
+    /// - see the enum-level docs. Not a `HashMap`: iteration order matches
+    /// insertion order, so `Display`/`keys()`/`values()` are deterministic.
     Map(Rc<MapData>),
+    /// A `nib`-defined function value. Functions have no closures - a
+    /// called function only ever sees the global scope plus its own
+    /// parameters/locals, never the caller's.
     Function(Rc<Function>),
+    /// A function registered via
+    /// [`Nib::register_func`](crate::Nib::register_func).
     NativeFunction(Rc<NativeFunction>),
+    /// The absence of a value.
     Null,
 }
 
 impl Value {
-    // Public: a host building a return value for `register_func` shouldn't
-    // have to know the payload is behind an Rc.
+    /// Builds an array value from `items`.
+    ///
+    /// A plain host-facing constructor - a native function returning an
+    /// array shouldn't have to know the payload is stored behind an `Rc`.
     pub fn array(items: Vec<Value>) -> Value {
         Value::Array(Rc::new(ArrayData::new(items)))
     }
 
+    /// Builds a map value from `pairs`, preserving their order.
     pub fn map(pairs: Vec<(String, Value)>) -> Value {
         Value::Map(Rc::new(MapData::new(pairs)))
     }

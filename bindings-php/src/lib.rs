@@ -6,7 +6,7 @@ use ext_php_rs::convert::IntoZvalDyn;
 use ext_php_rs::prelude::*;
 use ext_php_rs::types::{ZendCallable, ZendHashTable, Zval};
 use helpers::{describe_call_error, usize_option, value_to_zval, zval_to_value};
-use nib_core::{Config, Nib as NibCore, Value};
+use nib_lang::{Config, Nib as NibCore, Value};
 
 #[php_class]
 pub struct Nib {
@@ -71,7 +71,7 @@ impl Nib {
 
     pub fn register_func(&mut self, name: String, callback: &Zval) -> PhpResult<()> {
         // Reflect the callback once, up front, so calls from nib scripts with
-        // the wrong arity are rejected the same way nib_core already rejects
+        // the wrong arity are rejected the same way nib_lang already rejects
         // wrong-arity calls to its own user-defined functions.
         let arity = reflect_arity(callback).map_err(|e| e.to_string())?;
 

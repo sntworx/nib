@@ -133,7 +133,7 @@ name = "bindings-php"
 version = "0.1.0"
 dependencies = [
  "ext-php-rs",
- "nib_core",
+ "nib-lang",
 ]
 
 [[package]]
@@ -141,7 +141,7 @@ name = "bindings-ts"
 version = "0.1.0"
 dependencies = [
  "js-sys",
- "nib_core",
+ "nib-lang",
  "wasm-bindgen",
  "wasm-bindgen-test",
 ]
@@ -912,13 +912,13 @@ version = "0.1.0"
 dependencies = [
  "assert_cmd",
  "clap",
- "nib_core",
+ "nib-lang",
  "predicates",
  "tempfile",
 ]
 
 [[package]]
-name = "nib_core"
+name = "nib-lang"
 version = "0.1.0"
 
 [[package]]
