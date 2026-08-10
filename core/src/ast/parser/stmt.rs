@@ -316,6 +316,4 @@ impl Parser {
         self.expect(&TokenKind::Semicolon, "after expression")?;
         Ok(expr)
     }
-
-    // --- expressions (precedence climbing, lowest to highest) ---
 }

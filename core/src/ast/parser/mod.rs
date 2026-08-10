@@ -40,8 +40,6 @@ impl Parser {
         Ok(Ast::from_nodes(nodes))
     }
 
-    // --- token helpers ---
-
     fn peek(&self) -> &Token {
         &self.tokens[self.pos]
     }
@@ -107,6 +105,4 @@ impl Parser {
         }
         Ok(())
     }
-
-    // --- statements ---
 }

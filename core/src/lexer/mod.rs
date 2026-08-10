@@ -58,7 +58,7 @@ impl Lexer {
                     self.advance();
                 }
                 Some('/') if self.peek_at(1) == Some('/') => {
-                    // line comment - bonus, since a real language usually needs this
+                    // line comment
                     while let Some(c) = self.peek() {
                         if c == '\n' {
                             break;
