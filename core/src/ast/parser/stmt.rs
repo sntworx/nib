@@ -4,7 +4,7 @@
 
 use crate::ast::types::{
     AstNode, AstNodeKind, Expr, ForInStmt, ForStmt, FuncDecl, IfStmt, MatchArm, MatchStmt,
-    ParseError, TryStmt, VarAssign, WhileStmt,
+    LetAssign, ParseError, TryStmt, WhileStmt,
 };
 use crate::lexer::TokenKind;
 
@@ -15,8 +15,8 @@ impl Parser {
         let line = self.peek().line;
         let col = self.peek().col;
 
-        let kind = if self.match_kind(&TokenKind::Var) {
-            AstNodeKind::VarAssign(self.var_assign_stmt()?)
+        let kind = if self.match_kind(&TokenKind::Let) {
+            AstNodeKind::LetAssign(self.let_assign_stmt()?)
         } else if self.check(&TokenKind::If) {
             AstNodeKind::If(self.if_stmt()?)
         } else if self.check(&TokenKind::LBrace) {
@@ -103,12 +103,12 @@ impl Parser {
         Ok(Some(value))
     }
 
-    fn var_assign_stmt(&mut self) -> Result<VarAssign, ParseError> {
-        let name = self.expect_ident("after 'var'")?;
+    fn let_assign_stmt(&mut self) -> Result<LetAssign, ParseError> {
+        let name = self.expect_ident("after 'let'")?;
         self.expect(&TokenKind::Assign, "after variable name")?;
         let value = self.expression()?;
         self.expect(&TokenKind::Semicolon, "after variable declaration")?;
-        Ok(VarAssign { name, value })
+        Ok(LetAssign { name, value })
     }
 
     fn if_stmt(&mut self) -> Result<IfStmt, ParseError> {
@@ -179,8 +179,8 @@ impl Parser {
         } else {
             let line = self.peek().line;
             let col = self.peek().col;
-            let kind = if self.match_kind(&TokenKind::Var) {
-                AstNodeKind::VarAssign(self.var_assign_stmt()?)
+            let kind = if self.match_kind(&TokenKind::Let) {
+                AstNodeKind::LetAssign(self.let_assign_stmt()?)
             } else {
                 AstNodeKind::ExprStmt(self.expr_stmt()?)
             };

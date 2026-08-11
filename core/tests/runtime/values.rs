@@ -6,44 +6,44 @@ use crate::common::{err, run};
 
 #[test]
 fn assignment_copies_arrays() {
-    let out = run("var a = [1, 2]; var b = a; b[0] = 99; out(a[0], b[0]);").unwrap();
+    let out = run("let a = [1, 2]; let b = a; b[0] = 99; out(a[0], b[0]);").unwrap();
     assert_eq!(out, ["1 99"]);
 }
 
 #[test]
 fn assignment_copies_maps() {
-    let out = run(r#"var m = {x: 1}; var m2 = m; m2["x"] = 5; out(m["x"], m2["x"]);"#).unwrap();
+    let out = run(r#"let m = {x: 1}; let m2 = m; m2["x"] = 5; out(m["x"], m2["x"]);"#).unwrap();
     assert_eq!(out, ["1 5"]);
 }
 
 #[test]
 fn copy_survives_mutating_methods() {
-    let out = run("var a = [1]; var b = a; a.push(2); out(a.len(), b.len());").unwrap();
+    let out = run("let a = [1]; let b = a; a.push(2); out(a.len(), b.len());").unwrap();
     assert_eq!(out, ["2 1"]);
 }
 
 #[test]
 fn nested_containers_are_copied_too() {
-    let out = run("var a = [[1, 2]]; var b = a; b[0][0] = 9; out(a[0][0], b[0][0]);").unwrap();
+    let out = run("let a = [[1, 2]]; let b = a; b[0][0] = 9; out(a[0][0], b[0][0]);").unwrap();
     assert_eq!(out, ["1 9"]);
 }
 
 #[test]
 fn for_in_hands_elements_over_by_value() {
-    let out = run("var a = [[1]]; for x in a { x[0] = 9; } out(a[0][0]);").unwrap();
+    let out = run("let a = [[1]]; for x in a { x[0] = 9; } out(a[0][0]);").unwrap();
     assert_eq!(out, ["1"]);
 }
 
 #[test]
 fn function_arguments_are_copies() {
     let out =
-        run("func f(v) { v.push(2); return v.len(); } var a = [1]; out(f(a), a.len());").unwrap();
+        run("func f(v) { v.push(2); return v.len(); } let a = [1]; out(f(a), a.len());").unwrap();
     assert_eq!(out, ["2 1"]);
 }
 
 #[test]
 fn nested_index_assignment_writes_back() {
-    let out = run("var m = [[1, 2], [3, 4]]; m[1][0] = 99; out(m);").unwrap();
+    let out = run("let m = [[1, 2], [3, 4]]; m[1][0] = 99; out(m);").unwrap();
     assert_eq!(out, ["[[1, 2], [99, 4]]"]);
 }
 
@@ -77,7 +77,7 @@ fn falsy_values_are_not_equal_to_false() {
 
 #[test]
 fn functions_compare_by_identity() {
-    let out = run("func f() { } func g() { } var h = f; out(f == h, f == g);").unwrap();
+    let out = run("func f() { } func g() { } let h = f; out(f == h, f == g);").unwrap();
     assert_eq!(out, ["true false"]);
 }
 
@@ -104,7 +104,7 @@ fn displays_containers_in_insertion_order() {
 
 #[test]
 fn map_keys_and_values_follow_insertion_order() {
-    let out = run(r#"var m = {b: 1, a: 2}; m["c"] = 3; out(m.keys(), m.values());"#).unwrap();
+    let out = run(r#"let m = {b: 1, a: 2}; m["c"] = 3; out(m.keys(), m.values());"#).unwrap();
     assert_eq!(out, ["[b, a, c] [1, 2, 3]"]);
 }
 
@@ -112,24 +112,24 @@ fn map_keys_and_values_follow_insertion_order() {
 
 #[test]
 fn reading_a_missing_map_key_errors() {
-    assert!(err(r#"var m = {}; out(m["nope"]);"#).contains("nope"));
+    assert!(err(r#"let m = {}; out(m["nope"]);"#).contains("nope"));
 }
 
 #[test]
 fn array_index_is_bounds_checked_and_cannot_grow() {
-    assert!(err("var a = [1]; a[5] = 2;").contains("index 5 out of bounds for array of length 1"));
-    assert!(err("var a = [1]; out(a[5]);").contains("index 5 out of bounds for array of length 1"));
+    assert!(err("let a = [1]; a[5] = 2;").contains("index 5 out of bounds for array of length 1"));
+    assert!(err("let a = [1]; out(a[5]);").contains("index 5 out of bounds for array of length 1"));
 }
 
 #[test]
 fn map_index_assignment_upserts() {
-    let out = run(r#"var m = {a: 1}; m["b"] = 2; m["a"] = 9; out(m);"#).unwrap();
+    let out = run(r#"let m = {a: 1}; m["b"] = 2; m["a"] = 9; out(m);"#).unwrap();
     assert_eq!(out, ["{a: 9, b: 2}"]);
 }
 
 #[test]
 fn compound_assignment_needs_an_existing_map_key() {
-    assert!(err(r#"var m = {}; m["x"] += 1;"#).contains("compound assignment"));
+    assert!(err(r#"let m = {}; m["x"] += 1;"#).contains("compound assignment"));
 }
 
 #[test]
@@ -142,7 +142,7 @@ fn assigning_into_a_temporary_is_rejected() {
 
 #[test]
 fn functions_display_with_their_name() {
-    let out = run("func greet() { } var alias = greet; out(greet, alias);").unwrap();
+    let out = run("func greet() { } let alias = greet; out(greet, alias);").unwrap();
     assert_eq!(out, ["<function greet> <function greet>"]);
 }
 

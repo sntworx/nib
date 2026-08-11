@@ -38,7 +38,7 @@ nib.disableKeywords(["while"]); // optional: restrict the language surface
 nib.include(readFileSync("./lib/math.nib", "utf8"));
 
 nib.parse(`
-    var x = 1 + 2;
+    let x = 1 + 2;
     print("x =", double(x));
 `);
 

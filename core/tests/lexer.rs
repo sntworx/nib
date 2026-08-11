@@ -16,13 +16,13 @@ fn string_escapes() {
 #[test]
 fn unterminated_string_is_a_lex_error() {
     let mut nib = Nib::new();
-    assert!(matches!(nib.parse(r#"var s = "oops;"#), Err(Error::Lex(_))));
+    assert!(matches!(nib.parse(r#"let s = "oops;"#), Err(Error::Lex(_))));
 }
 
 #[test]
 fn line_and_block_comments_are_skipped() {
     let out = run(r#"// leading comment
-           var x = 1; // trailing
+           let x = 1; // trailing
            /* block
               spanning lines */
            out(x); /* inline */ out(2);"#)
@@ -57,25 +57,25 @@ fn numeric_literals() {
 fn out_of_range_literals_are_rejected() {
     let mut nib = Nib::new();
     assert!(matches!(
-        nib.parse("var x = 99999999999999999999;"),
+        nib.parse("let x = 99999999999999999999;"),
         Err(Error::Lex(_))
     ));
-    assert!(nib.parse("var x = 9223372036854775807;").is_ok());
+    assert!(nib.parse("let x = 9223372036854775807;").is_ok());
 }
 
 /// A lone `&`/`|` is a common typo, so it gets a pointed message rather than
 /// a bare "unexpected character".
 #[test]
 fn single_ampersand_or_pipe_suggests_the_doubled_form() {
-    assert!(err("var x = 1 & 2;").contains("&&"));
-    assert!(err("var x = 1 | 2;").contains("||"));
+    assert!(err("let x = 1 & 2;").contains("&&"));
+    assert!(err("let x = 1 | 2;").contains("||"));
 }
 
 /// Diagnostics must not echo raw script-controlled bytes (e.g. terminal
 /// escapes) back to the host, so unexpected characters are debug-formatted.
 #[test]
 fn unexpected_control_characters_are_escaped_in_diagnostics() {
-    let e = err("var x = \u{1b};");
+    let e = err("let x = \u{1b};");
     assert!(e.contains("\\u{1b}"), "{}", e);
     assert!(
         !e.contains('\u{1b}'),
@@ -85,15 +85,15 @@ fn unexpected_control_characters_are_escaped_in_diagnostics() {
 
 #[test]
 fn positions_are_reported_as_line_and_column() {
-    let e = err("var a = 1;\nvar b = ;");
+    let e = err("let a = 1;\nlet b = ;");
     assert!(e.contains("2:9"), "{}", e);
 }
 
 #[test]
 fn keywords_are_not_identifiers() {
-    assert!(err("var if = 1;").len() > 3);
+    assert!(err("let if = 1;").len() > 3);
     // ...but words merely containing a keyword are fine
-    let out = run("var iffy = 1; var format = 2; out(iffy, format);").unwrap();
+    let out = run("let iffy = 1; let format = 2; out(iffy, format);").unwrap();
     assert_eq!(out, ["1 2"]);
 }
 
@@ -107,14 +107,14 @@ fn unknown_escapes_pass_through() {
 #[test]
 fn a_string_ending_mid_escape_is_unterminated() {
     let mut nib = Nib::new();
-    assert!(matches!(nib.parse("var s = \"abc\\"), Err(Error::Lex(_))));
+    assert!(matches!(nib.parse("let s = \"abc\\"), Err(Error::Lex(_))));
 }
 
 /// With no exponent form, an out-of-range float needs a very long literal -
 /// but the guard is real and rejects it rather than storing `inf`.
 #[test]
 fn out_of_range_float_literals_are_rejected() {
-    let huge = format!("var x = 1{}.0;", "0".repeat(400));
+    let huge = format!("let x = 1{}.0;", "0".repeat(400));
     let mut nib = Nib::new();
     let e = nib.parse(&huge).unwrap_err().to_string();
     assert!(e.contains("out of range"), "{}", e);

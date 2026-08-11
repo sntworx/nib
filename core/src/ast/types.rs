@@ -91,7 +91,7 @@ pub enum Expr {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct VarAssign {
+pub struct LetAssign {
     pub name: String,
     pub value: Expr,
 }
@@ -155,7 +155,7 @@ pub struct TryStmt {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AstNodeKind {
-    VarAssign(VarAssign),
+    LetAssign(LetAssign),
     ExprStmt(Expr),
     If(IfStmt),
     Block(Vec<AstNode>),

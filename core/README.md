@@ -2,7 +2,7 @@
 
 > **Active development.** APIs, syntax, and behavior may change without notice. Not recommended for production use yet.
 
-`nib` is a small, embeddable scripting language with C-like syntax (`var`, `if`/`else`, `while`, `for`, top-level `func`s with no closures, arrays, maps) and a tree-walking interpreter. This crate, `nib-lang`, is the language implementation: lexer, parser, and interpreter, with no dependencies of its own.
+`nib` is a small, embeddable scripting language with C-like syntax (`let`, `if`/`else`, `while`, `for`, top-level `func`s with no closures, arrays, maps) and a tree-walking interpreter. This crate, `nib-lang`, is the language implementation: lexer, parser, and interpreter, with no dependencies of its own.
 
 Nothing is pre-bound by default: a host opts a script into native functions via `register_func`, and can strip specific keywords out of the language for a given script via `disable_keywords` (e.g. dropping `while`/`for` to rule out unbounded loops). That makes it a fit for running untrusted or user-authored logic inside a larger Rust application — plugin scripting, rules/workflow engines, user-defined formulas — where a script should only ever touch what was explicitly exposed to it.
 
@@ -28,20 +28,20 @@ nib.run()?;
 ## Syntax at a glance
 
 ```
-var x = 1 + 2;
+let x = 1 + 2;
 if x > 1 { } else { }
 while x < 10 { x++; }
-for (var i = 0; i < 10; i += 1) { }
+for (let i = 0; i < 10; i += 1) { }
 for x in [1, 2, 3] { }
 match x { case 1 { } default { } }
 try { throw "boom"; } catch e { }
 
 func add(a, b) { return a + b; }
 
-var arr = [1, 2, 3];
+let arr = [1, 2, 3];
 arr.push(4);
 
-var m = {name: "Bob", age: 30};
+let m = {name: "Bob", age: 30};
 m["age"] += 1;
 ```
 

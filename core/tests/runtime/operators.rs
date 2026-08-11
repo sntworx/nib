@@ -34,7 +34,7 @@ fn division_and_modulo_by_zero_are_errors_not_infinities() {
 
 #[test]
 fn float_results_must_stay_finite() {
-    let e = err("var big = 1.0; var i = 0; while i < 400 { big = big * 10.0; i++; }");
+    let e = err("let big = 1.0; let i = 0; while i < 400 { big = big * 10.0; i++; }");
     assert!(e.contains("overflow"), "{}", e);
 }
 
@@ -43,8 +43,8 @@ fn float_results_must_stay_finite() {
 /// built by arithmetic.
 #[test]
 fn float_literals_have_no_scientific_notation() {
-    assert!(err("var big = 1.0e308;").len() > 3);
-    assert!(err("var small = 1e-9;").len() > 3);
+    assert!(err("let big = 1.0e308;").len() > 3);
+    assert!(err("let small = 1e-9;").len() > 3);
 }
 
 // --- comparison -----------------------------------------------------------
@@ -108,7 +108,7 @@ fn integer_overflow_errors_on_every_operator() {
     assert!(err(&format!("out({} + 1);", max)).contains("integer overflow"));
     assert!(err(&format!("out({} * 2);", max)).contains("integer overflow"));
     assert!(err(&format!("out(-{} - 2);", max)).contains("integer overflow"));
-    assert!(err(&format!("var m = -{} - 1; out(-m);", max)).contains("integer overflow"));
+    assert!(err(&format!("let m = -{} - 1; out(-m);", max)).contains("integer overflow"));
 }
 
 #[test]

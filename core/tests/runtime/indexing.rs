@@ -5,14 +5,14 @@ use crate::common::{err, run};
 
 #[test]
 fn reads_chain_across_arrays_and_maps() {
-    let src = r#"var d = {users: [{name: "a"}, {name: "b"}]};
+    let src = r#"let d = {users: [{name: "a"}, {name: "b"}]};
                  out(d["users"][1]["name"]);"#;
     assert_eq!(run(src).unwrap(), ["b"]);
 }
 
 #[test]
 fn writes_chain_and_write_back_through_every_level() {
-    let src = r#"var d = {users: [{name: "a"}]};
+    let src = r#"let d = {users: [{name: "a"}]};
                  d["users"][0]["name"] = "z";
                  out(d);"#;
     assert_eq!(run(src).unwrap(), ["{users: [{name: z}]}"]);
@@ -20,10 +20,10 @@ fn writes_chain_and_write_back_through_every_level() {
 
 #[test]
 fn compound_and_increment_forms_reuse_the_same_machinery() {
-    let src = r#"var a = [1, 2];
+    let src = r#"let a = [1, 2];
                  a[0] += 10; a[1] *= 3; a[0]++; a[1]--;
                  out(a);
-                 var m = {n: 1};
+                 let m = {n: 1};
                  m["n"] += 5; m["n"]++;
                  out(m);"#;
     assert_eq!(run(src).unwrap(), ["[12, 5]", "{n: 7}"]);
@@ -31,15 +31,15 @@ fn compound_and_increment_forms_reuse_the_same_machinery() {
 
 #[test]
 fn array_indices_must_be_ints_in_range() {
-    assert!(err("var a = [1]; out(a[1.0]);").len() > 3);
-    assert!(err(r#"var a = [1]; out(a["0"]);"#).len() > 3);
-    assert!(err("var a = [1]; out(a[-1]);").len() > 3);
-    assert!(err("var a = [1]; out(a[1]);").contains("out of bounds"));
+    assert!(err("let a = [1]; out(a[1.0]);").len() > 3);
+    assert!(err(r#"let a = [1]; out(a["0"]);"#).len() > 3);
+    assert!(err("let a = [1]; out(a[-1]);").len() > 3);
+    assert!(err("let a = [1]; out(a[1]);").contains("out of bounds"));
 }
 
 #[test]
 fn map_keys_must_be_strings() {
-    assert!(err("var m = {a: 1}; out(m[0]);").len() > 3);
+    assert!(err("let m = {a: 1}; out(m[0]);").len() > 3);
 }
 
 #[test]
@@ -62,15 +62,15 @@ fn strings_are_not_directly_indexable() {
 #[test]
 fn arguments_are_evaluated_before_the_receiver_is_detached() {
     assert_eq!(
-        run("var a = [1, 2]; a.push(a.len()); out(a);").unwrap(),
+        run("let a = [1, 2]; a.push(a.len()); out(a);").unwrap(),
         ["[1, 2, 2]"]
     );
     assert_eq!(
-        run("var a = [5, 6]; a[0] = a[1]; out(a);").unwrap(),
+        run("let a = [5, 6]; a[0] = a[1]; out(a);").unwrap(),
         ["[6, 6]"]
     );
     assert_eq!(
-        run("var a = [1]; a[0] = a.len(); out(a);").unwrap(),
+        run("let a = [1]; a[0] = a.len(); out(a);").unwrap(),
         ["[1]"]
     );
 }
@@ -79,7 +79,7 @@ fn arguments_are_evaluated_before_the_receiver_is_detached() {
 /// what makes reference counting sufficient and a GC unnecessary.
 #[test]
 fn self_reference_stores_a_snapshot_rather_than_a_cycle() {
-    let out = run("var a = [1]; a.push(a); out(a); a[0] = 9; out(a);").unwrap();
+    let out = run("let a = [1]; a.push(a); out(a); a[0] = 9; out(a);").unwrap();
     assert_eq!(out, ["[1, [1]]", "[9, [1]]"]);
 }
 
@@ -87,9 +87,9 @@ fn self_reference_stores_a_snapshot_rather_than_a_cycle() {
 /// `object`/`index` sub-expressions, so side effects there run twice.
 #[test]
 fn nested_write_back_re_evaluates_outer_subexpressions() {
-    let src = r#"var calls = 0;
+    let src = r#"let calls = 0;
                  func i() { calls = calls + 1; return 0; }
-                 var m = [[1, 2]];
+                 let m = [[1, 2]];
                  m[i()][1] = 9;
                  out(m, calls);"#;
     assert_eq!(run(src).unwrap(), ["[[1, 9]] 2"]);
@@ -105,8 +105,8 @@ fn nested_write_back_re_evaluates_outer_subexpressions() {
 
 #[test]
 fn write_back_reports_an_index_that_went_out_of_bounds() {
-    let src = r#"var m = [[1, 2]];
-                 var n = 0;
+    let src = r#"let m = [[1, 2]];
+                 let n = 0;
                  func idx() { n = n + 1; return n == 1 ? 0 : 5; }
                  m[idx()][0] = 9;"#;
     assert!(err(src).contains("index 5 out of bounds"));
@@ -114,8 +114,8 @@ fn write_back_reports_an_index_that_went_out_of_bounds() {
 
 #[test]
 fn write_back_reports_an_index_that_stopped_being_an_integer() {
-    let src = r#"var m = [[1, 2]];
-                 var n = 0;
+    let src = r#"let m = [[1, 2]];
+                 let n = 0;
                  func idx() { n = n + 1; return n == 1 ? 0 : "x"; }
                  m[idx()][0] = 9;"#;
     assert!(err(src).contains("array index must be an integer, got string"));
@@ -123,8 +123,8 @@ fn write_back_reports_an_index_that_stopped_being_an_integer() {
 
 #[test]
 fn write_back_reports_a_map_key_that_stopped_being_a_string() {
-    let src = r#"var m = {a: [1, 2]};
-                 var n = 0;
+    let src = r#"let m = {a: [1, 2]};
+                 let n = 0;
                  func k() { n = n + 1; return n == 1 ? "a" : 7; }
                  m[k()][0] = 9;"#;
     assert!(err(src).contains("map key must be a string, got int"));
@@ -132,8 +132,8 @@ fn write_back_reports_a_map_key_that_stopped_being_a_string() {
 
 #[test]
 fn write_back_reports_a_container_that_stopped_being_indexable() {
-    let src = r#"var m = [[1, 2]];
-                 var n = 0;
+    let src = r#"let m = [[1, 2]];
+                 let n = 0;
                  func idx() { n = n + 1; if n == 2 { m = 5; } return 0; }
                  m[idx()][0] = 9;"#;
     assert!(err(src).contains("cannot index into int"));
@@ -143,15 +143,15 @@ fn write_back_reports_a_container_that_stopped_being_indexable() {
 
 #[test]
 fn assigning_with_a_wrong_typed_index_is_rejected() {
-    assert!(err(r#"var a = [1]; a["x"] = 2;"#).contains("array index must be an integer"));
-    assert!(err("var a = [1]; a[1.0] = 2;").contains("array index must be an integer"));
-    assert!(err("var m = {a: 1}; m[0] = 2;").contains("map key must be a string"));
-    assert!(err("var x = 1; x[0] = 2;").contains("cannot index into int"));
-    assert!(err(r#"var s = "ab"; s[0] = "c";"#).contains("cannot index into string"));
+    assert!(err(r#"let a = [1]; a["x"] = 2;"#).contains("array index must be an integer"));
+    assert!(err("let a = [1]; a[1.0] = 2;").contains("array index must be an integer"));
+    assert!(err("let m = {a: 1}; m[0] = 2;").contains("map key must be a string"));
+    assert!(err("let x = 1; x[0] = 2;").contains("cannot index into int"));
+    assert!(err(r#"let s = "ab"; s[0] = "c";"#).contains("cannot index into string"));
 }
 
 #[test]
 fn compound_assignment_checks_the_index_type_too() {
-    assert!(err(r#"var a = [1]; a["x"] += 2;"#).contains("array index must be an integer"));
-    assert!(err("var m = {a: 1}; m[0] += 2;").contains("map key must be a string"));
+    assert!(err(r#"let a = [1]; a["x"] += 2;"#).contains("array index must be an integer"));
+    assert!(err("let m = {a: 1}; m[0] += 2;").contains("map key must be a string"));
 }

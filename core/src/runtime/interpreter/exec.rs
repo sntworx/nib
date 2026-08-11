@@ -2,7 +2,7 @@
 // `return` can propagate up to whichever construct intercepts them.
 
 use crate::ast::types::{
-    AstNode, AstNodeKind, ForInStmt, ForStmt, FuncDecl, IfStmt, MatchStmt, TryStmt, VarAssign,
+    AstNode, AstNodeKind, ForInStmt, ForStmt, FuncDecl, IfStmt, LetAssign, MatchStmt, TryStmt,
     WhileStmt,
 };
 use crate::runtime::helpers::{is_truthy, values_equal};
@@ -19,7 +19,7 @@ impl Interpreter {
         self.current_pos = (node.line, node.col);
         self.tick()?;
         match &node.kind {
-            AstNodeKind::VarAssign(VarAssign { name, value }) => {
+            AstNodeKind::LetAssign(LetAssign { name, value }) => {
                 let value = self.eval(value)?;
                 self.env.define(name.clone(), value);
                 Ok(Flow::Normal)

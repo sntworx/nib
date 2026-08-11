@@ -19,7 +19,7 @@ fn conditions_take_bare_expressions_but_tolerate_parens() {
     assert_eq!(run("if true { out(1); }").unwrap(), ["1"]);
     assert_eq!(run("if (true) { out(1); }").unwrap(), ["1"]);
     assert_eq!(
-        run("var i = 0; while (i < 1) { i++; } out(i);").unwrap(),
+        run("let i = 0; while (i < 1) { i++; } out(i);").unwrap(),
         ["1"]
     );
 }
@@ -28,17 +28,17 @@ fn conditions_take_bare_expressions_but_tolerate_parens() {
 /// clauses - and each clause is optional.
 #[test]
 fn c_style_for_requires_parens_and_allows_empty_clauses() {
-    assert!(err("for var i = 0; i < 1; i++ { }").len() > 3);
+    assert!(err("for let i = 0; i < 1; i++ { }").len() > 3);
     assert_eq!(
-        run("for (var i = 0; i < 3; i++) { out(i); }").unwrap(),
+        run("for (let i = 0; i < 3; i++) { out(i); }").unwrap(),
         ["0", "1", "2"]
     );
     assert_eq!(
-        run("var i = 0; for (; i < 2;) { i++; } out(i);").unwrap(),
+        run("let i = 0; for (; i < 2;) { i++; } out(i);").unwrap(),
         ["2"]
     );
     assert_eq!(
-        run("var n = 0; for (;;) { n++; if n > 2 { break; } } out(n);").unwrap(),
+        run("let n = 0; for (;;) { n++; if n > 2 { break; } } out(n);").unwrap(),
         ["3"]
     );
 }
@@ -52,8 +52,8 @@ fn for_in_never_takes_parens() {
 
 #[test]
 fn bare_block_is_its_own_statement_and_scope() {
-    assert_eq!(run("{ var inner = 1; out(inner); }").unwrap(), ["1"]);
-    assert!(err("{ var inner = 1; } out(inner);").len() > 3);
+    assert_eq!(run("{ let inner = 1; out(inner); }").unwrap(), ["1"]);
+    assert!(err("{ let inner = 1; } out(inner);").len() > 3);
 }
 
 #[test]
@@ -92,7 +92,7 @@ fn func_declarations_are_top_level_only() {
 /// The reverse is fine: loops and blocks *inside* a function are ordinary.
 #[test]
 fn blocks_and_loops_inside_a_function_are_fine() {
-    let src = "func f() { var n = 0; for (var i = 0; i < 3; i++) { if i > 0 { n += i; } } return n; } out(f());";
+    let src = "func f() { let n = 0; for (let i = 0; i < 3; i++) { if i > 0 { n += i; } } return n; } out(f());";
     assert_eq!(run(src).unwrap(), ["3"]);
 }
 
@@ -132,10 +132,10 @@ fn catch_binding_takes_no_parens() {
     );
 }
 
-/// `for`'s init clause takes any statement, not just a `var` declaration.
+/// `for`'s init clause takes any statement, not just a `let` declaration.
 #[test]
 fn for_init_accepts_a_bare_expression() {
-    let out = run("var i = 0; for (i = 0; i < 2; i++) { out(i); } out(i);").unwrap();
+    let out = run("let i = 0; for (i = 0; i < 2; i++) { out(i); } out(i);").unwrap();
     assert_eq!(out, ["0", "1", "2"]);
 }
 
@@ -146,6 +146,6 @@ fn match_rejects_a_second_default_arm() {
 
 #[test]
 fn map_keys_reject_non_identifier_literals() {
-    assert!(err("var m = {1: 2};").contains("map key"));
-    assert!(err("var m = {true: 2};").contains("map key"));
+    assert!(err("let m = {1: 2};").contains("map key"));
+    assert!(err("let m = {true: 2};").contains("map key"));
 }

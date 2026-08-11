@@ -4,7 +4,7 @@ use crate::common::{err, run};
 
 #[test]
 fn array_methods() {
-    let src = r#"var a = [1, 2, 3];
+    let src = r#"let a = [1, 2, 3];
                  out(a.len());
                  out(a.push(4), a.len());
                  out(a.pop(), a.len(), a);"#;
@@ -13,7 +13,7 @@ fn array_methods() {
 
 #[test]
 fn map_methods() {
-    let src = r#"var m = {a: 1, b: 2};
+    let src = r#"let m = {a: 1, b: 2};
                  out(m.len(), m.has("a"), m.has("z"));
                  out(m.get("a"), m.get("z"));
                  out(m.remove("a"), m.len(), m);
@@ -27,13 +27,13 @@ fn map_methods() {
 /// `get` is the forgiving counterpart to `m[key]`: `Null` instead of an error.
 #[test]
 fn map_get_is_forgiving_where_indexing_is_not() {
-    assert_eq!(run(r#"var m = {}; out(m.get("x"));"#).unwrap(), ["null"]);
-    assert!(err(r#"var m = {}; out(m["x"]);"#).len() > 3);
+    assert_eq!(run(r#"let m = {}; out(m.get("x"));"#).unwrap(), ["null"]);
+    assert!(err(r#"let m = {}; out(m["x"]);"#).len() > 3);
 }
 
 #[test]
 fn string_methods() {
-    let src = r#"var s = "  Hello World  ";
+    let src = r#"let s = "  Hello World  ";
                  out(s.trim().len(), s.trim().upper(), s.trim().lower());
                  out("abc".chars(), "abc".len());
                  out("42".to_int(), "3.5".to_float());"#;
@@ -63,7 +63,7 @@ fn float_methods() {
 #[test]
 fn rounding_methods_return_ints_usable_as_indices() {
     let out =
-        run("var a = [10, 20, 30]; out(a[(2.7).floor()], a[(0.2).ceil()], a[(0.4).round()]);")
+        run("let a = [10, 20, 30]; out(a[(2.7).floor()], a[(0.2).ceil()], a[(0.4).round()]);")
             .unwrap();
     assert_eq!(out, ["30 20 10"]);
 }
@@ -142,8 +142,8 @@ fn every_method_checks_its_arity() {
 
 #[test]
 fn mutating_methods_fail_on_an_empty_or_missing_target() {
-    assert!(err("var a = []; a.pop();").len() > 3);
-    assert!(err(r#"var m = {}; m.remove("x");"#).len() > 3);
+    assert!(err("let a = []; a.pop();").len() > 3);
+    assert!(err(r#"let m = {}; m.remove("x");"#).len() > 3);
 }
 
 #[test]

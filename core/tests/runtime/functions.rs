@@ -9,7 +9,7 @@ use std::rc::Rc;
 #[test]
 fn declaration_call_and_return() {
     let src = r#"func add(a, b) { return a + b; }
-                 func noReturn() { var x = 1; }
+                 func noReturn() { let x = 1; }
                  out(add(2, 3), noReturn());"#;
     assert_eq!(run(src).unwrap(), ["5 null"]);
 }
@@ -42,14 +42,14 @@ fn mutual_recursion_works_at_top_level() {
 #[test]
 fn functions_do_not_capture_the_calling_scope() {
     assert!(
-        err("func f() { return local; } func g() { var local = 1; return f(); } g();").len() > 3
+        err("func f() { return local; } func g() { let local = 1; return f(); } g();").len() > 3
     );
-    assert!(err("func f() { var inner = 1; return 0; } f(); out(inner);").len() > 3);
+    assert!(err("func f() { let inner = 1; return 0; } f(); out(inner);").len() > 3);
 }
 
 #[test]
 fn functions_see_globals_and_can_write_to_them() {
-    let src = r#"var counter = 0;
+    let src = r#"let counter = 0;
                  func bump() { counter = counter + 1; }
                  bump(); bump();
                  out(counter);"#;
@@ -62,18 +62,18 @@ fn functions_see_globals_and_can_write_to_them() {
 fn functions_are_first_class_values() {
     let src = r#"func dbl(x) { return x * 2; }
                  func apply(fn, v) { return fn(v); }
-                 var alias = dbl;
+                 let alias = dbl;
                  out(apply(dbl, 5), alias(3));
-                 var fns = [dbl];
+                 let fns = [dbl];
                  out(fns[0](7));
-                 var m = {f: dbl};
+                 let m = {f: dbl};
                  out(m["f"](8));"#;
     assert_eq!(run(src).unwrap(), ["10 6", "14", "16"]);
 }
 
 #[test]
 fn calling_a_non_function_is_an_error() {
-    assert!(err("var x = 1; x();").contains("cannot call"));
+    assert!(err("let x = 1; x();").contains("cannot call"));
     assert!(err("undefinedFn();").contains("undefined function"));
 }
 
@@ -81,7 +81,7 @@ fn calling_a_non_function_is_an_error() {
 /// call reports the caller's line rather than a stale one from inside.
 #[test]
 fn error_positions_survive_a_call() {
-    let e = err("func f() { return 1; }\nvar a = f();\nvar b = 1 / 0;");
+    let e = err("func f() { return 1; }\nlet a = f();\nlet b = 1 / 0;");
     assert!(e.contains("3:"), "{}", e);
 }
 
@@ -109,7 +109,7 @@ fn natives_are_reachable_from_inside_functions_and_shadowable() {
     nib.parse(
         r#"func usesExt() { return ext(); }
            out(usesExt());
-           var ext = 5;
+           let ext = 5;
            out(ext);"#,
     )
     .unwrap();
@@ -175,7 +175,7 @@ fn natives_display_and_compare_by_identity() {
     let (mut nib, log) = harness(cfg(|_| {}));
     nib.register_func("ext", |_: &[Value]| Ok(Value::Null));
     nib.register_func("other", |_: &[Value]| Ok(Value::Null));
-    nib.parse("var alias = ext; out(ext); out(ext == alias, ext == other);")
+    nib.parse("let alias = ext; out(ext); out(ext == alias, ext == other);")
         .unwrap();
     nib.run().unwrap();
     assert_eq!(*log.borrow(), ["<native function ext>", "true false"]);
@@ -197,7 +197,7 @@ fn return_propagates_out_of_every_loop_form() {
     let src = r#"func w() { while true { return "w"; } }
                  func f() { for (;;) { return "f"; } }
                  func i() { for x in [1, 2] { return "i"; } }
-                 func n() { for (var a = 0; a < 2; a++) { for x in [1] { return "n"; } } }
+                 func n() { for (let a = 0; a < 2; a++) { for x in [1] { return "n"; } } }
                  out(w(), f(), i(), n());"#;
     assert_eq!(run(src).unwrap(), ["w f i n"]);
 }

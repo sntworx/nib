@@ -1,5 +1,5 @@
 //! `nib` is a small, embeddable scripting language with C-like syntax
-//! (`var`, `if`/`else`, `while`, `for`, top-level `func`s with no closures,
+//! (`let`, `if`/`else`, `while`, `for`, top-level `func`s with no closures,
 //! arrays, maps) and a tree-walking interpreter.
 //!
 //! Nothing is pre-bound by default: a host opts a script into native
@@ -65,7 +65,7 @@ pub use types::{Config, Error};
 ///
 /// Owns a persistent interpreter, so native functions registered via
 /// [`register_func`](Nib::register_func) and script-defined global state
-/// (e.g. top-level `var`s) survive across repeated
+/// (e.g. top-level `let`s) survive across repeated
 /// [`parse`](Nib::parse)/[`run`](Nib::run) calls. A typical flow: register
 /// any native functions, optionally [`include`](Nib::include) shared `nib`
 /// library code, then [`parse`](Nib::parse) and [`run`](Nib::run) a script.
@@ -215,7 +215,7 @@ impl Nib {
     /// use nib_lang::Nib;
     ///
     /// let mut nib = Nib::new();
-    /// nib.parse("var x = 1 + 2;")?;
+    /// nib.parse("let x = 1 + 2;")?;
     /// nib.run()?;
     /// # Ok::<(), nib_lang::Error>(())
     /// ```
@@ -284,7 +284,7 @@ impl Nib {
     /// let mut nib = Nib::new();
     /// assert!(nib.ast().is_none());
     ///
-    /// nib.parse("var x = 1;")?;
+    /// nib.parse("let x = 1;")?;
     /// assert!(nib.ast().is_some());
     /// # Ok::<(), nib_lang::Error>(())
     /// ```
@@ -316,7 +316,7 @@ impl Nib {
     /// let mut nib = Nib::new();
     /// assert!(matches!(nib.run(), Err(Error::NotParsed)));
     ///
-    /// nib.parse("var x = 1;")?;
+    /// nib.parse("let x = 1;")?;
     /// nib.run()?;
     /// # Ok::<(), nib_lang::Error>(())
     /// ```

@@ -48,7 +48,7 @@ fn print_and_println_differ_only_in_the_newline() {
 
 #[test]
 fn read_consumes_a_line_of_stdin() {
-    let dir = workspace(&[("s.nib", r#"var name = read(); println("hi " + name);"#)]);
+    let dir = workspace(&[("s.nib", r#"let name = read(); println("hi " + name);"#)]);
     nib()
         .arg(dir.path().join("s.nib"))
         .write_stdin("world\n")
@@ -59,7 +59,7 @@ fn read_consumes_a_line_of_stdin() {
 
 #[test]
 fn read_rejects_arguments() {
-    let dir = workspace(&[("s.nib", r#"var x = read(1);"#)]);
+    let dir = workspace(&[("s.nib", r#"let x = read(1);"#)]);
     nib()
         .arg(dir.path().join("s.nib"))
         .write_stdin("\n")
@@ -70,7 +70,7 @@ fn read_rejects_arguments() {
 
 #[test]
 fn time_flag_reports_execution_time() {
-    let dir = workspace(&[("s.nib", "var x = 1;")]);
+    let dir = workspace(&[("s.nib", "let x = 1;")]);
     nib()
         .arg(dir.path().join("s.nib"))
         .arg("--time")
@@ -119,7 +119,7 @@ fn include_accepts_a_comma_separated_list_in_order() {
 
 #[test]
 fn errors_in_included_code_are_labelled() {
-    let dir = workspace(&[("lib.nib", "var broken = 1 / 0;"), ("s.nib", "println(1);")]);
+    let dir = workspace(&[("lib.nib", "let broken = 1 / 0;"), ("s.nib", "println(1);")]);
     nib()
         .arg(dir.path().join("s.nib"))
         .arg("--include")
@@ -149,7 +149,7 @@ fn ast_flag_prints_the_tree_instead_of_running() {
 
 #[test]
 fn ast_flag_with_a_path_writes_a_file() {
-    let dir = workspace(&[("s.nib", "var x = 1 + 2;")]);
+    let dir = workspace(&[("s.nib", "let x = 1 + 2;")]);
     let out = dir.path().join("tree.txt");
     nib()
         .arg(dir.path().join("s.nib"))
@@ -163,7 +163,7 @@ fn ast_flag_with_a_path_writes_a_file() {
 
 #[test]
 fn ast_flag_reports_an_unwritable_destination() {
-    let dir = workspace(&[("s.nib", "var x = 1;")]);
+    let dir = workspace(&[("s.nib", "let x = 1;")]);
     nib()
         .arg(dir.path().join("s.nib"))
         .arg("--ast")
@@ -188,7 +188,7 @@ fn check_reports_valid_syntax_without_running() {
 
 #[test]
 fn check_reports_a_syntax_error_in_the_script() {
-    let dir = workspace(&[("s.nib", "var x = ;")]);
+    let dir = workspace(&[("s.nib", "let x = ;")]);
     nib()
         .arg(dir.path().join("s.nib"))
         .arg("--check")
@@ -200,7 +200,7 @@ fn check_reports_a_syntax_error_in_the_script() {
 /// `--check` parses each include independently, so a bad one is named.
 #[test]
 fn check_reports_a_syntax_error_in_an_include() {
-    let dir = workspace(&[("lib.nib", "func broken( {"), ("s.nib", "var x = 1;")]);
+    let dir = workspace(&[("lib.nib", "func broken( {"), ("s.nib", "let x = 1;")]);
     nib()
         .arg(dir.path().join("s.nib"))
         .arg("--check")
@@ -214,7 +214,7 @@ fn check_reports_a_syntax_error_in_an_include() {
 /// A *runtime* error is not a syntax error - `--check` never runs the script.
 #[test]
 fn check_ignores_runtime_errors() {
-    let dir = workspace(&[("s.nib", "var x = 1 / 0;")]);
+    let dir = workspace(&[("s.nib", "let x = 1 / 0;")]);
     nib()
         .arg(dir.path().join("s.nib"))
         .arg("--check")
@@ -236,7 +236,7 @@ fn a_missing_script_is_reported_and_fails() {
 
 #[test]
 fn a_missing_include_is_reported_and_fails() {
-    let dir = workspace(&[("s.nib", "var x = 1;")]);
+    let dir = workspace(&[("s.nib", "let x = 1;")]);
     nib()
         .arg(dir.path().join("s.nib"))
         .arg("--include")
@@ -248,7 +248,7 @@ fn a_missing_include_is_reported_and_fails() {
 
 #[test]
 fn parse_errors_go_to_stderr_with_a_failing_exit_code() {
-    let dir = workspace(&[("s.nib", "var x = ;")]);
+    let dir = workspace(&[("s.nib", "let x = ;")]);
     nib()
         .arg(dir.path().join("s.nib"))
         .assert()
@@ -261,7 +261,7 @@ fn parse_errors_go_to_stderr_with_a_failing_exit_code() {
 fn runtime_errors_go_to_stderr_after_partial_output() {
     let dir = workspace(&[(
         "s.nib",
-        r#"println("before"); var x = 1 / 0; println("after");"#,
+        r#"println("before"); let x = 1 / 0; println("after");"#,
     )]);
     nib()
         .arg(dir.path().join("s.nib"))

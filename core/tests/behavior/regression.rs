@@ -16,7 +16,7 @@ fn failed_push_at_the_size_limit_leaves_the_array_intact() {
     let c = cfg(|c| c.max_array_length = 3);
     let out = run_with(
         c,
-        r#"var a = [1, 2, 3];
+        r#"let a = [1, 2, 3];
            try { a.push(4); } catch e { out("rejected"); }
            out(a, a.len());"#,
     )
@@ -31,7 +31,7 @@ fn failed_index_assignment_leaves_the_array_intact() {
     let c = cfg(|c| c.max_value_depth = 3);
     let out = run_with(
         c,
-        r#"var a = [[[1]]];
+        r#"let a = [[[1]]];
            try { a[0] = a; } catch e { out("rejected"); }
            out(a);"#,
     )
@@ -48,7 +48,7 @@ fn shared_subtrees_cannot_explode_the_logical_tree() {
     let c = cfg(|c| c.max_value_nodes = 1000);
     let e = err_with(
         c,
-        "var a = [1]; var i = 0; while i < 26 { a = [a, a]; i++; }",
+        "let a = [1]; let i = 0; while i < 26 { a = [a, a]; i++; }",
     );
     assert!(e.contains("maximum total size"), "{}", e);
 }
@@ -57,7 +57,7 @@ fn shared_subtrees_cannot_explode_the_logical_tree() {
 /// script (`math_abs` in stdlib/math.nib negates its argument).
 #[test]
 fn negating_i64_min_errors_instead_of_panicking() {
-    let e = err("var m = -9223372036854775807 - 1; out(-m);");
+    let e = err("let m = -9223372036854775807 - 1; out(-m);");
     assert!(e.contains("integer overflow"), "{}", e);
 }
 
@@ -94,7 +94,7 @@ fn to_float_rejects_non_finite_strings() {
 /// first position is kept.
 #[test]
 fn duplicate_map_literal_keys_collapse() {
-    let out = run(r#"var m = {a: 1, b: 2, a: 3}; out(m, m.len());"#).unwrap();
+    let out = run(r#"let m = {a: 1, b: 2, a: 3}; out(m, m.len());"#).unwrap();
     assert_eq!(out, ["{a: 3, b: 2} 2"]);
 }
 
@@ -128,7 +128,7 @@ fn run_before_parse_does_not_execute_includes() {
 #[test]
 fn includes_do_not_run_twice() {
     let (mut nib, log) = harness(Config::default());
-    nib.include("var counter = 0;");
+    nib.include("let counter = 0;");
     nib.parse("counter = counter + 1; out(counter);").unwrap();
     nib.run().unwrap();
     nib.parse("counter = counter + 1; out(counter);").unwrap();
@@ -152,7 +152,7 @@ fn size_limits_remain_catchable() {
     let c = cfg(|c| c.max_array_length = 2);
     let out = run_with(
         c,
-        r#"var a = [1, 2];
+        r#"let a = [1, 2];
            try { a.push(3); } catch e { out("caught"); }
            out("still running");"#,
     )
@@ -169,7 +169,7 @@ fn exit_breaks_out_of_an_infinite_loop_cleanly() {
     let c = cfg(|c| c.max_steps = 1000);
     let out = run_with(
         c,
-        r#"var i = 0; while true { i++; if i > 2 { exit; } } out("unreachable");"#,
+        r#"let i = 0; while true { i++; if i > 2 { exit; } } out("unreachable");"#,
     )
     .unwrap();
     assert!(out.is_empty(), "{:?}", out);
@@ -193,11 +193,11 @@ fn exit_inside_a_function_stops_the_whole_program() {
 /// the two limits guard genuinely different vectors and both are load-bearing.
 #[test]
 fn parse_depth_and_value_depth_guard_different_vectors() {
-    let deep_literal = format!("var x = {}1{};", "[".repeat(80), "]".repeat(80));
+    let deep_literal = format!("let x = {}1{};", "[".repeat(80), "]".repeat(80));
     assert!(err(&deep_literal).contains("nested too deeply"));
 
     let c = cfg(|c| c.max_value_depth = 8);
-    assert!(err_with(c, "var a = [1]; while true { a = [a]; }").contains("nested deeper"));
+    assert!(err_with(c, "let a = [1]; while true { a = [a]; }").contains("nested deeper"));
 }
 
 /// Errors in included code are labelled, and keep their own line numbers
@@ -205,7 +205,7 @@ fn parse_depth_and_value_depth_guard_different_vectors() {
 #[test]
 fn included_code_errors_are_labelled_and_keep_their_own_positions() {
     let (mut nib, _log) = harness(Config::default());
-    nib.include("var ok = 1;\nvar bad = ;");
+    nib.include("let ok = 1;\nlet bad = ;");
     nib.parse("out(1);").unwrap();
     let e = nib.run().unwrap_err().to_string();
     assert!(e.contains("(in included code)"), "{}", e);

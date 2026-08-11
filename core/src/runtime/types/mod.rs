@@ -34,7 +34,7 @@ impl fmt::Debug for NativeFunction {
     }
 }
 
-// Arrays and maps stay *value* types to a script - `var b = a; b[0] = 1;`
+// Arrays and maps stay *value* types to a script - `let b = a; b[0] = 1;`
 // must never touch `a` - but the Rc means that promise costs a refcount bump
 // instead of a deep copy. Every write goes through `Rc::make_mut`, which
 // clones only when the data is actually shared, so the observable semantics
@@ -46,7 +46,7 @@ impl fmt::Debug for NativeFunction {
 /// [`Nib::register_func`](crate::Nib::register_func) and what every `nib`
 /// expression evaluates to.
 ///
-/// Arrays and maps are value types, not reference types: `var b = a;`
+/// Arrays and maps are value types, not reference types: `let b = a;`
 /// followed by `b[0] = 1;` never affects `a`. Internally they're
 /// copy-on-write (`Rc`-backed), so that guarantee costs a refcount bump on
 /// clone rather than a deep copy, and only actually copies when a shared

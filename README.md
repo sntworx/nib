@@ -6,7 +6,7 @@
 
 ## What's nib
 
-`nib` is a small custom scripting language written in Rust, meant to be embedded inside a host application rather than run standalone. C-like syntax (`var`, `if`/`else`, `while`, `for`, top-level `func`s with no closures, arrays, etc.).
+`nib` is a small custom scripting language written in Rust, meant to be embedded inside a host application rather than run standalone. C-like syntax (`let`, `if`/`else`, `while`, `for`, top-level `func`s with no closures, arrays, etc.).
 
 Nothing is pre-bound by default: the host decides exactly which native functions a script is allowed to call (`register_func`), and can even strip specific keywords out of the language for a given script (`disable_keywords`) — e.g. dropping `while`/`for` to rule out unbounded loops. That opt-in-only surface makes it a fit for running untrusted or user-authored logic inside a larger app: plugin scripting, rules/workflow engines, user-defined formulas, that kind of thing — where you want scripts to only ever touch what you explicitly exposed.
 
@@ -73,19 +73,19 @@ The same language also reaches multiple host runtimes: a PHP extension (`binding
 ### Literals
 
 ```
-var i = 42;
-var f = 3.14;
-var s = "line 1\nline 2\ttabbed\\backslash \"quoted\"";
-var b = true;
-var n = null;
-var a = [1, 2, 3];
-var m = {name: "Bob", "favorite number": 7};
+let i = 42;
+let f = 3.14;
+let s = "line 1\nline 2\ttabbed\\backslash \"quoted\"";
+let b = true;
+let n = null;
+let a = [1, 2, 3];
+let m = {name: "Bob", "favorite number": 7};
 ```
 
 ### Variables & assignment
 
 ```
-var x = 1;
+let x = 1;
 x = 2;
 x += 3;   // also -= *= /= %=
 x++;      // also x-- and prefix ++x/--x
@@ -123,7 +123,7 @@ while x < 10 {
 ```
 
 ```
-for (var i = 0; i < 10; i += 1) {
+for (let i = 0; i < 10; i += 1) {
     if i == 2 { continue; }
     if i == 5 { break; }
 }
@@ -154,8 +154,8 @@ match x {
 For branching inside an expression there's a ternary, the one place `nib` conditions produce a value rather than choosing a statement:
 
 ```
-var label = score > 90 ? "A" : "B";
-var grade = s > 90 ? "A" : s > 80 ? "B" : "C";   // chains group to the right
+let label = score > 90 ? "A" : "B";
+let grade = s > 90 ? "A" : s > 80 ? "B" : "C";   // chains group to the right
 ```
 
 Only the taken branch is evaluated, so the untaken side can safely be an expensive or failing call. Chains are right-associative, and the whole thing nests anywhere an expression can go — a map value, an array element, a call argument.
@@ -172,7 +172,7 @@ A bare `{ ... }` also works as its own statement — its own scope, not attached
 
 ```
 try {
-    var x = 1 / 0;
+    let x = 1 / 0;
 } catch e {
     println("caught: " + e);   // -> caught: division by zero
 }
@@ -224,17 +224,17 @@ Functions are **top-level only** (no nested `func`) and have **no closures** —
 ### Arrays
 
 ```
-var matrix = [[1, 2], [3, 4]];
+let matrix = [[1, 2], [3, 4]];
 matrix[0][1] = 9;
 matrix[0][1] += 1;
 ```
 
-Arrays are a value type: `var b = a; b[0] = 1;` does **not** change `a`, unlike JS/Python/Ruby. That's a guarantee about behavior, not about copying — the payload is shared internally and only duplicated when a shared copy is written to, so assigning an array around is cheap and `push` doesn't re-copy the whole thing.
+Arrays are a value type: `let b = a; b[0] = 1;` does **not** change `a`, unlike JS/Python/Ruby. That's a guarantee about behavior, not about copying — the payload is shared internally and only duplicated when a shared copy is written to, so assigning an array around is cheap and `push` doesn't re-copy the whole thing.
 
 ```
-var arr = [1, 2, 3];
+let arr = [1, 2, 3];
 arr.push(4);      // -> [1, 2, 3, 4], and writes it back to `arr`
-var last = arr.pop();  // -> 4, and writes the shrunk array back to `arr`
+let last = arr.pop();  // -> 4, and writes the shrunk array back to `arr`
 arr.len();        // -> 3
 ```
 
@@ -243,15 +243,15 @@ arr.len();        // -> 3
 ### Maps
 
 ```
-var user = {name: "Bob", age: 30};
+let user = {name: "Bob", age: 30};
 user["age"] += 1;
 user["email"] = "bob@example.com";  // new key: just inserts, no push() needed
 ```
 
-Maps are string-keyed and, like arrays, a value type: `var b = user; b["age"] = 0;` does **not** change `user`. Insertion order is preserved, so printing/`keys()`/`values()` are always deterministic — a map is not a `HashMap`.
+Maps are string-keyed and, like arrays, a value type: `let b = user; b["age"] = 0;` does **not** change `user`. Insertion order is preserved, so printing/`keys()`/`values()` are always deterministic — a map is not a `HashMap`.
 
 ```
-var m = {a: 1, b: 2};
+let m = {a: 1, b: 2};
 m.len();          // -> 2
 m.has("a");       // -> true
 m.get("z");       // -> null (never errors, unlike m["z"])
@@ -265,7 +265,7 @@ m.values();       // -> [2]
 ### Strings
 
 ```
-var s = "  Hello World  ";
+let s = "  Hello World  ";
 s.trim();       // -> "Hello World"
 s.trim().upper();  // -> "HELLO WORLD"
 s.trim().lower();  // -> "hello world"
@@ -417,7 +417,7 @@ $nib->disableKeywords(["while"]); // optional: restrict the language surface
 $nib->include(file_get_contents(__DIR__ . "/lib/math.nib"));
 
 $nib->parse('
-    var x = 1 + 2;
+    let x = 1 + 2;
     print("x =", double(x));
 ');
 
@@ -490,7 +490,7 @@ nib.disableKeywords(["while"]); // optional: restrict the language surface
 nib.include(readFileSync("./lib/math.nib", "utf8"));
 
 nib.parse(`
-    var x = 1 + 2;
+    let x = 1 + 2;
     print("x =", double(x));
 `);
 
@@ -599,7 +599,7 @@ The `nib` language itself has no builtins at all (see [What's not there](#whats-
 
 ```
 print("What's your name: ");
-var name = read();
+let name = read();
 println("Hello, " + name + "!");
 ```
 

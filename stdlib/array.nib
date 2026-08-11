@@ -8,7 +8,7 @@ func array_contains(arr, value) {
 }
 
 func array_index_of(arr, value) {
-    var i = 0;
+    let i = 0;
     for item in arr {
         if item == value {
             return i;
@@ -19,8 +19,8 @@ func array_index_of(arr, value) {
 }
 
 func array_join(arr, sep) {
-    var result = "";
-    var i = 0;
+    let result = "";
+    let i = 0;
     for item in arr {
         if i > 0 {
             result = result + sep;
@@ -32,8 +32,8 @@ func array_join(arr, sep) {
 }
 
 func array_reverse(arr) {
-    var result = [];
-    var i = arr.len() - 1;
+    let result = [];
+    let i = arr.len() - 1;
     while i >= 0 {
         result.push(arr[i]);
         i = i - 1;
@@ -42,8 +42,8 @@ func array_reverse(arr) {
 }
 
 func array_slice(arr, start, end) {
-    var result = [];
-    var i = start;
+    let result = [];
+    let i = start;
     while i < end {
         result.push(arr[i]);
         i = i + 1;
@@ -52,7 +52,7 @@ func array_slice(arr, start, end) {
 }
 
 func array_sum(arr) {
-    var total = 0;
+    let total = 0;
     for item in arr {
         total = total + item;
     }
@@ -60,7 +60,7 @@ func array_sum(arr) {
 }
 
 func array_min(arr) {
-    var m = arr[0];
+    let m = arr[0];
     for item in arr {
         if item < m {
             m = item;
@@ -70,7 +70,7 @@ func array_min(arr) {
 }
 
 func array_max(arr) {
-    var m = arr[0];
+    let m = arr[0];
     for item in arr {
         if item > m {
             m = item;
@@ -80,7 +80,7 @@ func array_max(arr) {
 }
 
 func array_map(arr, fn) {
-    var result = [];
+    let result = [];
     for item in arr {
         result.push(fn(item));
     }
@@ -88,7 +88,7 @@ func array_map(arr, fn) {
 }
 
 func array_filter(arr, fn) {
-    var result = [];
+    let result = [];
     for item in arr {
         if fn(item) {
             result.push(item);
@@ -98,7 +98,7 @@ func array_filter(arr, fn) {
 }
 
 func array_reduce(arr, fn, initial) {
-    var acc = initial;
+    let acc = initial;
     for item in arr {
         acc = fn(acc, item);
     }

@@ -65,7 +65,7 @@ impl Interpreter {
     // `Rc::make_mut` mutate in place instead of deep-copying. Returns whether
     // anything was detached; if so the caller MUST write the value back
     // (`assign_to_target`) or restore it, since the binding now holds Null.
-    // Aliased values (`var b = a;`) still have a refcount above 1 afterwards,
+    // Aliased values (`let b = a;`) still have a refcount above 1 afterwards,
     // so make_mut correctly copies and `b` is left untouched.
     // `push` is the only mutating method that can grow a collection past a
     // size limit, and once `make_mut` has mutated in place there's no

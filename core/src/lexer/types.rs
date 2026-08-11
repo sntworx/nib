@@ -9,7 +9,7 @@ pub enum TokenKind {
     Str(String),
 
     // keywords
-    Var,
+    Let,
     If,
     Else,
     True,
@@ -75,7 +75,7 @@ impl TokenKind {
     // `Nib::disable_keywords` validates against it, so the two can't drift.
     pub fn from_keyword(text: &str) -> Option<TokenKind> {
         let kind = match text {
-            "var" => TokenKind::Var,
+            "let" => TokenKind::Let,
             "if" => TokenKind::If,
             "else" => TokenKind::Else,
             "true" => TokenKind::True,
@@ -109,7 +109,7 @@ impl fmt::Display for TokenKind {
             TokenKind::Float(v) => write!(f, "float '{}'", v),
             TokenKind::Str(v) => write!(f, "string \"{}\"", v),
 
-            TokenKind::Var => write!(f, "'var'"),
+            TokenKind::Let => write!(f, "'let'"),
             TokenKind::If => write!(f, "'if'"),
             TokenKind::Else => write!(f, "'else'"),
             TokenKind::True => write!(f, "'true'"),

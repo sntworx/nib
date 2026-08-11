@@ -6,7 +6,7 @@ use crate::common::{err, run};
 /// else is truthy - including "0" (unlike PHP) and [0].
 #[test]
 fn falsy_table() {
-    let src = r#"var cases = [false, true, null, 0, 1, -1, 0.0, 0.5, "", "0", "a", [], [0], {}, {a: 1}];
+    let src = r#"let cases = [false, true, null, 0, 1, -1, 0.0, 0.5, "", "0", "a", [], [0], {}, {a: 1}];
                  for c in cases { if c { out("T"); } else { out("F"); } }"#;
     assert_eq!(run(src).unwrap().join(""), "FTFFTTFTFTTFTFT");
 }
@@ -14,8 +14,8 @@ fn falsy_table() {
 #[test]
 fn every_condition_site_coerces() {
     let src = r#"if 5 { out("if"); }
-                 var n = 2; while n { n--; } out(n);
-                 for (var s = "ab"; s.len(); s = "") { out("for"); }
+                 let n = 2; while n { n--; } out(n);
+                 for (let s = "ab"; s.len(); s = "") { out("for"); }
                  out(3 ? "ternary" : "no");"#;
     assert_eq!(run(src).unwrap(), ["if", "0", "for", "ternary"]);
 }
@@ -31,7 +31,7 @@ fn logical_operators_coerce_but_return_bools() {
 #[test]
 fn logical_operators_never_yield_an_operand() {
     assert_eq!(
-        run(r#"var v = null || "fallback"; out(v);"#).unwrap(),
+        run(r#"let v = null || "fallback"; out(v);"#).unwrap(),
         ["true"]
     );
 }

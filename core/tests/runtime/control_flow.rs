@@ -5,17 +5,17 @@ use crate::common::{cfg, err, run, run_with};
 
 #[test]
 fn while_and_c_style_for() {
-    let src = r#"var i = 0; while i < 3 { out(i); i++; }
-                 for (var j = 2; j > 0; j--) { out(j); }"#;
+    let src = r#"let i = 0; while i < 3 { out(i); i++; }
+                 for (let j = 2; j > 0; j--) { out(j); }"#;
     assert_eq!(run(src).unwrap(), ["0", "1", "2", "2", "1"]);
 }
 
 #[test]
 fn break_and_continue_in_both_loop_forms() {
-    let src = r#"var acc = 0;
-                 for (var i = 0; i < 5; i++) { if i == 1 { continue; } if i == 4 { break; } acc += i; }
+    let src = r#"let acc = 0;
+                 for (let i = 0; i < 5; i++) { if i == 1 { continue; } if i == 4 { break; } acc += i; }
                  out(acc);
-                 var n = 0;
+                 let n = 0;
                  while true { n++; if n < 3 { continue; } break; }
                  out(n);"#;
     assert_eq!(run(src).unwrap(), ["5", "3"]);
@@ -24,14 +24,14 @@ fn break_and_continue_in_both_loop_forms() {
 /// `continue` in a C-style `for` still runs the post clause, matching C/JS.
 #[test]
 fn continue_runs_the_post_clause() {
-    let src = "var seen = []; for (var i = 0; i < 4; i++) { if i == 1 { continue; } seen.push(i); } out(seen);";
+    let src = "let seen = []; for (let i = 0; i < 4; i++) { if i == 1 { continue; } seen.push(i); } out(seen);";
     assert_eq!(run(src).unwrap(), ["[0, 2, 3]"]);
 }
 
 #[test]
 fn break_only_exits_the_innermost_loop() {
-    let src = r#"var hits = 0;
-                 for (var i = 0; i < 2; i++) { for (var j = 0; j < 5; j++) { if j == 1 { break; } hits++; } }
+    let src = r#"let hits = 0;
+                 for (let i = 0; i < 2; i++) { for (let j = 0; j < 5; j++) { if j == 1 { break; } hits++; } }
                  out(hits);"#;
     assert_eq!(run(src).unwrap(), ["2"]);
 }
@@ -40,7 +40,7 @@ fn break_only_exits_the_innermost_loop() {
 /// reassigning the source mid-loop doesn't change what's iterated.
 #[test]
 fn for_in_evaluates_its_subject_once() {
-    let src = "var a = [1, 2, 3]; for x in a { a = [9]; out(x); }";
+    let src = "let a = [1, 2, 3]; for x in a { a = [9]; out(x); }";
     assert_eq!(run(src).unwrap(), ["1", "2", "3"]);
 }
 
@@ -73,7 +73,7 @@ fn match_takes_the_first_arm_and_does_not_fall_through() {
 /// Patterns are ordinary expressions compared with `==`, not a binding grammar.
 #[test]
 fn match_patterns_are_arbitrary_expressions() {
-    let src = r#"var x = 2;
+    let src = r#"let x = 2;
                  match 3 { case x + 1 { out("computed"); } default { out("no"); } }
                  match [1, 2] { case [1, 2] { out("structural"); } default { out("no"); } }
                  match 1 { case 1.0 { out("numeric"); } default { out("no"); } }"#;
@@ -102,7 +102,7 @@ fn throw_carries_any_value_through_to_catch() {
 /// convention native-function errors already use.
 #[test]
 fn builtin_errors_arrive_as_strings() {
-    let out = run(r#"try { var x = 1 / 0; } catch e { out(e); }"#).unwrap();
+    let out = run(r#"try { let x = 1 / 0; } catch e { out(e); }"#).unwrap();
     assert_eq!(out, ["division by zero"]);
 }
 
@@ -110,7 +110,7 @@ fn builtin_errors_arrive_as_strings() {
 /// rather than being caught by its own try.
 #[test]
 fn catch_blocks_are_not_self_guarding() {
-    assert!(err(r#"try { throw "a"; } catch e { var x = 1 / 0; }"#).contains("division by zero"));
+    assert!(err(r#"try { throw "a"; } catch e { let x = 1 / 0; }"#).contains("division by zero"));
 }
 
 #[test]
@@ -131,7 +131,7 @@ fn errors_propagate_out_of_function_calls_to_an_enclosing_try() {
 
 #[test]
 fn exit_stops_everything_including_enclosing_loops() {
-    let src = r#"for (var i = 0; i < 5; i++) { out(i); if i == 1 { exit; } } out("never");"#;
+    let src = r#"for (let i = 0; i < 5; i++) { out(i); if i == 1 { exit; } } out("never");"#;
     assert_eq!(run(src).unwrap(), ["0", "1"]);
 }
 
@@ -148,7 +148,7 @@ fn exit_is_scoped_to_one_run() {
 #[test]
 fn exit_leaves_the_current_statement_to_finish() {
     // control flow is only checked at statement granularity, never mid-expression
-    let src = r#"func f() { exit; } out("a"); var x = f(); out("b");"#;
+    let src = r#"func f() { exit; } out("a"); let x = f(); out("b");"#;
     assert_eq!(run(src).unwrap(), ["a"]);
 }
 
@@ -160,7 +160,7 @@ fn return_outside_a_function_is_an_error() {
 #[test]
 fn deeply_nested_blocks_execute() {
     let c = cfg(|c| c.max_steps = 10_000);
-    let src = "var n = 0; { { { for (var i = 0; i < 3; i++) { { n += i; } } } } } out(n);";
+    let src = "let n = 0; { { { for (let i = 0; i < 3; i++) { { n += i; } } } } } out(n);";
     assert_eq!(run_with(c, src).unwrap(), ["3"]);
 }
 
@@ -172,7 +172,7 @@ fn exit_stops_a_for_in_loop() {
 
 #[test]
 fn break_and_continue_work_in_for_in() {
-    let src = r#"var seen = [];
+    let src = r#"let seen = [];
                  for x in [1, 2, 3, 4] { if x == 2 { continue; } if x == 4 { break; } seen.push(x); }
                  out(seen);"#;
     assert_eq!(run(src).unwrap(), ["[1, 3]"]);
