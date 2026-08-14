@@ -5,6 +5,20 @@ use js_sys::{Array, Function};
 use nib_lang::{Nib as NibCore, Value};
 use wasm_bindgen::prelude::*;
 
+#[wasm_bindgen(typescript_custom_section)]
+const NIB_OPTIONS_TS: &'static str = r#"
+export interface NibOptions {
+    maxCallDepth?: number;
+    maxParseDepth?: number;
+    maxSteps?: number;
+    maxStringLength?: number;
+    maxArrayLength?: number;
+    maxMapSize?: number;
+    maxValueDepth?: number;
+    maxValueNodes?: number;
+}
+"#;
+
 #[wasm_bindgen]
 pub struct Nib {
     nib: NibCore,
@@ -16,8 +30,12 @@ impl Nib {
     // conversions (only i8/u8/i16/u16, not usize/f64) support Option - a
     // plain JsValue naturally represents an omitted argument as `undefined`
     // instead, so `new Nib()` and `new Nib({ maxCallDepth: 500 })` both work.
+    // `unchecked_optional_param_type` makes the generated .d.ts match that
+    // at the type level too (`options?: NibOptions`), not just at runtime.
     #[wasm_bindgen(constructor)]
-    pub fn new(options: JsValue) -> Result<Nib, JsValue> {
+    pub fn new(
+        #[wasm_bindgen(unchecked_optional_param_type = "NibOptions")] options: JsValue,
+    ) -> Result<Nib, JsValue> {
         let config = parse_config(&options)?;
         Ok(Nib {
             nib: NibCore::with_config(config),
