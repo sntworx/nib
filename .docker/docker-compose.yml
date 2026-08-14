@@ -1,0 +1,21 @@
+services:
+  nib-php-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PHP_VERSION: "8.3"
+    volumes:
+      - ..:/app
+      # Keep build artifacts / registry cache in a named volume so they
+      # survive across containers instead of writing target/ back onto the
+      # host with root-owned files.
+      - cargo-target:/app/target
+      - cargo-registry:/usr/local/cargo/registry
+    working_dir: /app
+    tty: true
+    stdin_open: true
+
+volumes:
+  cargo-target:
+  cargo-registry:

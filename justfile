@@ -47,6 +47,26 @@ php-extension-remove:
 php-extension-update:
   cd bindings-php && cargo php remove --yes && cargo php install --release --yes
 
+# start the php dev container (.docker/) in the background
+docker-up:
+  docker compose -f .docker/docker-compose.yml up -d
+
+# stop and remove the php dev container
+docker-down:
+  docker compose -f .docker/docker-compose.yml down
+
+# build + install the php extension inside the running dev container
+docker-php-extension-install:
+  docker compose -f .docker/docker-compose.yml exec nib-php-dev just php-extension-install
+
+# run a php script inside the running dev container, e.g. `just docker-php-run test.php`
+docker-php-run script:
+  docker compose -f .docker/docker-compose.yml exec nib-php-dev php {{script}}
+
+# full teardown: remove the container, its image and the cached target/registry volumes
+docker-clean:
+  docker compose -f .docker/docker-compose.yml down --rmi local --volumes
+
 # build TS bindings for web (bindings-ts/pkg/web)
 bindings-ts-build-web:
   cd bindings-ts && wasm-pack build --release --target web --out-dir pkg/web

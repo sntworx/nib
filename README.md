@@ -50,6 +50,7 @@ The same language also reaches multiple host runtimes: a PHP extension (`binding
 - [PHP](#php)
   - [Installation](#installation)
   - [Usage](#usage)
+  - [Docker](#docker)
 - [JS/TS](#jsts)
   - [Installation](#installation-1)
   - [Usage](#usage-1)
@@ -95,12 +96,12 @@ x++;      // also x-- and prefix ++x/--x
 
 ```
 1 + 2 * 3;
-7 % 3;               // remainder, sign follows the dividend (like C/JS, not Python)
-(1 + 2) * 3;         // parens are just a grouping expression
-"count: " + 5;       // + also stringifies numbers for concatenation
-a == b && c != d;    // && and || short-circuit
-!done || -x <= 0;    // unary ! and -
-!"" && items;        // any value works: truthy/falsy, result is always a Bool
+7 % 3;                 // remainder, sign follows the dividend (like C/JS, not Python)
+(1 + 2) * 3;           // parens are just a grouping expression
+"count: " + 5;         // + also stringifies numbers for concatenation
+a == b && c != d;      // && and || short-circuit
+!done || -x <= 0;      // unary ! and -
+!"" && items;          // any value works: truthy/falsy, result is always a Bool
 n > 0 ? "yes" : "no";  // ternary — see Control flow
 ```
 
@@ -233,9 +234,9 @@ Arrays are a value type: `let b = a; b[0] = 1;` does **not** change `a`, unlike 
 
 ```
 let arr = [1, 2, 3];
-arr.push(4);      // -> [1, 2, 3, 4], and writes it back to `arr`
+arr.push(4);           // -> [1, 2, 3, 4], and writes it back to `arr`
 let last = arr.pop();  // -> 4, and writes the shrunk array back to `arr`
-arr.len();        // -> 3
+arr.len();             // -> 3
 ```
 
 `.method()` is a small, fixed set of built-in pseudo-methods on arrays, maps, and strings — not general member access or user-extensible dispatch. `push`/`pop` write their result back to wherever the receiver came from (a variable or a nested index, e.g. `matrix[0].push(x)`), same as `arr[i] = x` does; calling one on something that isn't a variable or index (like a bare function call's return value) fails the same way index-assignment into a temporary already does.
@@ -252,12 +253,12 @@ Maps are string-keyed and, like arrays, a value type: `let b = user; b["age"] = 
 
 ```
 let m = {a: 1, b: 2};
-m.len();          // -> 2
-m.has("a");       // -> true
-m.get("z");       // -> null (never errors, unlike m["z"])
-m.remove("a");    // -> 1, and writes the shrunk map back to `m`
-m.keys();         // -> ["b"]
-m.values();       // -> [2]
+m.len();               // -> 2
+m.has("a");            // -> true
+m.get("z");            // -> null (never errors, unlike m["z"])
+m.remove("a");         // -> 1, and writes the shrunk map back to `m`
+m.keys();              // -> ["b"]
+m.values();            // -> [2]
 ```
 
 `m[key] = value` always upserts — inserts a new key or overwrites an existing one, unlike arrays where index-assignment is bounds-checked and can't grow. `m[key]` on a missing key is a runtime error (use `.get(key)`/`.has(key)` to check first); compound assignment (`m[key] += value`) also requires the key to already exist. Two maps compare equal (`==`) if they have the same keys and values, regardless of insertion order.
@@ -266,14 +267,14 @@ m.values();       // -> [2]
 
 ```
 let s = "  Hello World  ";
-s.trim();       // -> "Hello World"
-s.trim().upper();  // -> "HELLO WORLD"
-s.trim().lower();  // -> "hello world"
-s.len();        // -> 15 (character count, not byte count)
+s.trim();                   // -> "Hello World"
+s.trim().upper();           // -> "HELLO WORLD"
+s.trim().lower();           // -> "hello world"
+s.len();                    // -> 15 (character count, not byte count)
 ```
 
 ```
-"42".to_int();     // -> 42
+"42".to_int();      // -> 42
 "3.14".to_float();  // -> 3.14
 "abc".to_int();     // -> runtime error, not 0 or null
 ```
@@ -460,6 +461,19 @@ Callbacks passed to `registerFunc` accept any PHP callable (closure, named funct
 
 Values crossing the boundary in either direction may nest at most 128 levels deep; anything deeper (including a self-referential array like `$a["self"] = &$a`, which has no bottom) fails with `value nested deeper than 128 levels`. The conversion walks the structure recursively, so without that cap a recursive array would run off the native stack and take the PHP process down with it.
 
+### Docker
+
+[`.docker/`](.docker/) has a dev container with Rust, PHP + dev headers, `clang`/`libclang` (needed by `ext-php-rs`'s bindgen step), and `cargo-php` already installed, with the repo root bind-mounted at `/app` — useful if you don't want to install a matching Rust/PHP toolchain locally just to build and try out `bindings-php`. It's driven through `just` from the repo root:
+
+```sh
+just docker-up                       # start the container in the background
+just docker-php-extension-install    # build bindings-php and install it into the container's PHP
+just docker-php-run some_script.php  # run a PHP script inside the container
+just docker-down                     # stop and remove the container
+```
+
+`docker-php-extension-install` must be re-run after starting a fresh container (`just docker-down` followed by `just docker-up`) — it writes into `/usr/local/etc/php` and the extension dir, which live in the container's filesystem rather than the `/app` bind mount, so they don't carry over across container instances. `target/` and the cargo registry are cached in named Docker volumes so recompiles stay fast across runs.
+
 ## JS/TS
 
 ### Installation
@@ -570,12 +584,12 @@ Download the `nib` binary for your platform from the [Releases page](https://git
 
 ```sh
 nib script.nib                                          # parse + run
-nib script.nib --time                                    # also print execution time
-nib script.nib --include lib/math.nib,lib/string.nib     # load library files first
-nib script.nib --ast                                      # print the parsed AST instead of running
-nib script.nib --ast out.txt                              # write the parsed AST to a file instead
-nib script.nib --check                                    # parse only, report syntax errors, don't run
-nib --version                                             # print the CLI version
+nib script.nib --time                                   # also print execution time
+nib script.nib --include lib/math.nib,lib/string.nib    # load library files first
+nib script.nib --ast                                    # print the parsed AST instead of running
+nib script.nib --ast out.txt                            # write the parsed AST to a file instead
+nib script.nib --check                                  # parse only, report syntax errors, don't run
+nib --version                                           # print the CLI version
 ```
 
 | Flag | Description |
