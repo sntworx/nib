@@ -1,6 +1,6 @@
 [package]
 name = "nib-lang"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 license.workspace = true
 description = "A small, embeddable scripting language with a sandboxed, opt-in-only interpreter."

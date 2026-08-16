@@ -51,7 +51,7 @@ if [[ ! -f "$built_lib" ]]; then
 fi
 
 php_version=$(php -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;')
-crate_version=$(sed -n 's/^version *= *"\(.*\)"/\1/p' bindings-php/Cargo.toml | head -n1)
+crate_version=$(cargo pkgid -p bindings-php | sed 's/.*#//')
 
 mkdir -p dist/php-nib
 out="dist/php-nib/php_nib-v${crate_version}-php${php_version}-${target}.so"

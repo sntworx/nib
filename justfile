@@ -1,3 +1,17 @@
+# bump the version everywhere it's duplicated: the Cargo workspace (core, nib,
+# bindings-php, bindings-ts all inherit from `[workspace.package]`) and
+# bindings-ts/package.json - npm is a separate registry with no shared
+# version field, so that one file still needs its own edit.
+bump-version version:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  sed -i.bak -E "/^\[workspace\.package\]/,/^\[/ s/^version = \".*\"/version = \"{{version}}\"/" Cargo.toml
+  rm -f Cargo.toml.bak
+  sed -i.bak -E "s/\"version\": \"[^\"]*\"/\"version\": \"{{version}}\"/" bindings-ts/package.json
+  rm -f bindings-ts/package.json.bak
+  cargo check --workspace --quiet
+  echo "Bumped to {{version}}"
+
 # run nib cli
 nib *args:
   cargo run -p nib -- {{args}}
@@ -6,7 +20,7 @@ nib *args:
 cli-build-musl:
   #!/usr/bin/env bash
   set -euo pipefail
-  version=$(sed -n 's/^version *= *"\(.*\)"/\1/p' nib/Cargo.toml | head -n1)
+  version=$(cargo pkgid -p nib | sed 's/.*#//')
   target=x86_64-unknown-linux-musl
   cargo build -p nib --release --target "$target"
   mkdir -p dist/cli
@@ -17,7 +31,7 @@ cli-build-musl:
 cli-build-macos:
   #!/usr/bin/env bash
   set -euo pipefail
-  version=$(sed -n 's/^version *= *"\(.*\)"/\1/p' nib/Cargo.toml | head -n1)
+  version=$(cargo pkgid -p nib | sed 's/.*#//')
   # host triple, not a bare "macos" - this only ever builds for the host arch,
   # so the name has to say which one (Intel vs Apple Silicon)
   target=$(rustc -vV | sed -n 's/^host: //p')
