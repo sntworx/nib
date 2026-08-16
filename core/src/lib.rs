@@ -153,6 +153,30 @@ impl Nib {
         self.interpreter.register_native(name, f);
     }
 
+    /// Binds a plain [`Value`] into the global scope, the same way
+    /// [`register_func`](Nib::register_func) binds a native function - just
+    /// a value handed to the interpreter instead of a callback invoked by it.
+    ///
+    /// Bound the same way a native function is: composes for free (can be
+    /// shadowed by the script or by an [`include`](Nib::include)d one, and is
+    /// visible to every function the script defines).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use nib_lang::{Nib, Value};
+    ///
+    /// let mut nib = Nib::new();
+    /// nib.register_var("greeting", Value::Str("hi".to_string()));
+    ///
+    /// nib.parse("let shout = greeting + \"!\";")?;
+    /// nib.run()?;
+    /// # Ok::<(), nib_lang::Error>(())
+    /// ```
+    pub fn register_var(&mut self, name: impl Into<String>, value: Value) {
+        self.interpreter.register_value(name, value);
+    }
+
     /// Restricts the language surface by disabling specific keywords for
     /// scripts subsequently parsed via [`parse`](Nib::parse) — e.g. dropping
     /// `while`/`for` to rule out unbounded loops.

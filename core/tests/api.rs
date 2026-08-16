@@ -125,6 +125,33 @@ fn native_functions_are_ordinary_values() {
 }
 
 #[test]
+fn register_var_binds_a_plain_value_in_the_global_scope() {
+    let (mut nib, log) = harness(Config::default());
+    nib.register_var("limit", Value::Int(3));
+    nib.parse(
+        r#"out(limit);
+           let limit = limit + 1;  // shadows the registered global, doesn't mutate it
+           out(limit);"#,
+    )
+    .unwrap();
+    nib.run().unwrap();
+    assert_eq!(*log.borrow(), ["3", "4"]);
+}
+
+#[test]
+fn register_var_is_visible_inside_functions_like_any_other_global() {
+    let (mut nib, log) = harness(Config::default());
+    nib.register_var("prefix", Value::Str("id-".to_string()));
+    nib.parse(
+        r#"func label(n) { return prefix + n; }
+           out(label(7));"#,
+    )
+    .unwrap();
+    nib.run().unwrap();
+    assert_eq!(*log.borrow(), ["id-7"]);
+}
+
+#[test]
 fn ast_is_available_after_parse_and_absent_before() {
     let mut nib = Nib::new();
     assert!(nib.ast().is_none());

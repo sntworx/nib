@@ -413,13 +413,15 @@ $nib->registerFunc("print", function (...$args) {
     echo implode(" ", $args), "\n";
 });
 
+$nib->registerVar("appName", "my-app");
+
 $nib->disableKeywords(["while"]); // optional: restrict the language surface
 
 $nib->include(file_get_contents(__DIR__ . "/lib/math.nib"));
 
 $nib->parse('
     let x = 1 + 2;
-    print("x =", double(x));
+    print(appName, "x =", double(x));
 ');
 
 $nib->run();
@@ -458,6 +460,8 @@ try {
 ```
 
 Callbacks passed to `registerFunc` accept any PHP callable (closure, named function, `[$obj, "method"]`, etc.) and are arity-checked via reflection, so calling one with the wrong number of arguments from a `nib` script fails with a clear error instead of a PHP-level warning.
+
+`registerVar` binds a plain value instead of a function — `$nib->registerVar("maxRetries", 3);` makes `maxRetries` available to the script as a global, the same way `registerFunc` makes a name callable. It composes the same way too: shadowable by the script's own `let`, visible from every `func` the script defines.
 
 Values crossing the boundary in either direction may nest at most 128 levels deep; anything deeper (including a self-referential array like `$a["self"] = &$a`, which has no bottom) fails with `value nested deeper than 128 levels`. The conversion walks the structure recursively, so without that cap a recursive array would run off the native stack and take the PHP process down with it.
 
@@ -499,13 +503,15 @@ nib.registerFunc("print", (...args) => {
     console.log(...args);
 });
 
+nib.registerVar("appName", "my-app");
+
 nib.disableKeywords(["while"]); // optional: restrict the language surface
 
 nib.include(readFileSync("./lib/math.nib", "utf8"));
 
 nib.parse(`
     let x = 1 + 2;
-    print("x =", double(x));
+    print(appName, "x =", double(x));
 `);
 
 nib.run();
@@ -551,8 +557,9 @@ Direct browser, no bundler — needs an explicit async init first, and `include(
 
     const nib = new Nib();
     nib.registerFunc("print", (...args) => console.log(...args));
+    nib.registerVar("appName", "my-app");
     nib.include(await (await fetch("./lib/math.nib")).text());
-    nib.parse('print("x =", double(2));');
+    nib.parse('print(appName, "x =", double(2));');
     nib.run();
 </script>
 ```
@@ -571,6 +578,8 @@ try {
 ```
 
 Callbacks passed to `registerFunc` are plain JS functions and, unlike the PHP binding, aren't arity-checked — JS itself doesn't error on a mismatched argument count, so `nib` just calls through and lets normal JS semantics apply (missing arguments become `undefined`, extra ones are ignored).
+
+`registerVar` binds a plain value instead of a function — `nib.registerVar("maxRetries", 3);` makes `maxRetries` available to the script as a global, the same way `registerFunc` makes a name callable. It composes the same way too: shadowable by the script's own `let`, visible from every `func` the script defines.
 
 Values crossing the boundary in either direction may nest at most 128 levels deep; anything deeper (including a cyclic object like `o.self = o`, which has no bottom) fails with `value nested deeper than 128 levels`. The conversion walks the structure recursively, so without that cap a cyclic value would overflow the wasm stack — and because that unwind skips Rust destructors, it poisons the whole module, not just the `Nib` instance that hit it.
 

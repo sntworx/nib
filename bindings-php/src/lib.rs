@@ -104,6 +104,12 @@ impl Nib {
 
         Ok(())
     }
+
+    pub fn register_var(&mut self, name: String, value: &Zval) -> PhpResult<()> {
+        let value = zval_to_value(value)?;
+        self.nib.register_var(name, value);
+        Ok(())
+    }
 }
 
 #[php_module]

@@ -94,6 +94,12 @@ impl Interpreter {
             .define(name, Value::NativeFunction(Rc::new(native)));
     }
 
+    // Same global-scope binding `register_native` uses, minus the
+    // `NativeFunction` wrapping - any `Value` the host already has in hand.
+    pub fn register_value(&mut self, name: impl Into<String>, value: Value) {
+        self.env.define(name.into(), value);
+    }
+
     pub fn run(&mut self, ast: &Ast) -> Result<(), RuntimeError> {
         self.step_count = 0;
         self.should_exit = false;

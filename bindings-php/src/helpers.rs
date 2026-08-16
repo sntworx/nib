@@ -113,6 +113,6 @@ fn zval_to_value_at(zval: &Zval, depth: usize) -> Result<Value, String> {
                 .map(Value::map)
         }
     } else {
-        Err("unsupported PHP value returned from callback".to_string())
+        Err("unsupported PHP value".to_string())
     }
 }

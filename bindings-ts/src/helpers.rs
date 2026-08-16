@@ -146,7 +146,7 @@ fn js_to_value_at(js: &JsValue, depth: usize) -> Result<Value, String> {
             .collect::<Result<Vec<_>, _>>()
             .map(Value::map)
     } else {
-        Err("unsupported JS value returned from callback".to_string())
+        Err("unsupported JS value".to_string())
     }
 }
 

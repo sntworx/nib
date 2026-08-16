@@ -13,6 +13,8 @@ class Nib
 
     public function registerFunc(string $name, callable $callback): void {}
 
+    public function registerVar(string $name, mixed $value): void {}
+
     public function include(string $sourcename): void {}
 
     public function disableKeywords(array $keywords): void {}

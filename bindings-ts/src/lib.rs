@@ -74,6 +74,13 @@ impl Nib {
             });
     }
 
+    #[wasm_bindgen(js_name = registerVar)]
+    pub fn register_var(&mut self, name: String, value: JsValue) -> Result<(), JsValue> {
+        let value = js_to_value(&value).map_err(|e| JsValue::from_str(&e))?;
+        self.nib.register_var(name, value);
+        Ok(())
+    }
+
     #[wasm_bindgen(js_name = disableKeywords)]
     pub fn disable_keywords(&mut self, keywords: Vec<String>) -> Result<(), JsValue> {
         self.nib

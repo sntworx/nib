@@ -13,6 +13,9 @@
   },
   "author": "Mateusz Jezierski",
   "keywords": ["nib", "scripting", "language", "interpreter", "wasm"],
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "./pkg/node/nib_ts.js",
   "module": "./pkg/bundler/nib_ts.js",
